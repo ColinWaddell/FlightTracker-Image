@@ -22,24 +22,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable binfmt_misc and install qemu for armhf cross-build
+      - name: Setup qemu-arm symlink for armhf cross-build
         if: matrix.arch == 'armhf'
         run: |
-          # Install qemu-user-static which includes qemu-arm
-          sudo apt-get update
-          sudo apt-get install -y qemu-user-static binfmt-support
+          # pi-gen-action installs qemu-user-static but only symlinks qemu-aarch64.
+          # build-docker.sh needs qemu-arm in PATH on the host.
+          sudo ln -sf /usr/bin/qemu-arm-static /usr/local/bin/qemu-arm
           
-          # Mount binfmt_misc if not already mounted
+          # Register qemu-arm with F flag on host so it works inside containers
           sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true
+          echo ':qemu-arm-rpi:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-arm-static:F' | sudo tee /proc/sys/fs/binfmt_misc/register >/dev/null 2>&1 || true
           
-          # Register qemu-arm for armhf binaries
-          sudo update-binfmts --enable qemu-arm || true
-          
-          # Alternative: use docker's binfmt registration
-          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes || true
-          
-          # Verify registration
-          cat /proc/sys/fs/binfmt_misc/qemu-arm 2>/dev/null || echo "qemu-arm not registered"
+          # Verify
+          cat /proc/sys/fs/binfmt_misc/qemu-arm-rpi 2>/dev/null || cat /proc/sys/fs/binfmt_misc/qemu-arm 2>/dev/null || echo "qemu-arm not registered"
 
       - name: Build ${{ matrix.arch }} image
         uses: usimd/pi-gen-action@v1.11.0
@@ -51,6 +46,7 @@ jobs:
           pi-gen-release: ${{ matrix.arch == 'arm64' && 'arm64' || 'armhf' }}
           pi-gen-version: ${{ matrix.arch == 'arm64' && 'arm64' || 'master' }}
           release: trixie
+          docker-opts: ${{ matrix.arch == 'armhf' && '--security-opt seccomp=unconfined' || '' }}
           locale: en_GB.UTF-8
           hostname: flighttracker
           keyboard-keymap: gb
