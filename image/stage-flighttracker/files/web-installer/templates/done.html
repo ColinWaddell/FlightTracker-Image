@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}FlightTracker Installer — {{ "Done" if success else "Failed" }}{% endblock %}
+{% block title %}FlightTracker Installer - {{ "Done" if success else "Failed" }}{% endblock %}
 
 {% block content %}
 <div class="ft-steps mb-4">
@@ -8,9 +8,9 @@
   <div class="ft-step done"><div class="ft-step-dot"><i class="bi bi-check"></i></div>Configure</div>
   <div class="ft-step done"><div class="ft-step-dot"><i class="bi bi-check"></i></div>Install</div>
   <div class="ft-step {% if success %}active{% else %}done{% endif %}">
-    <div class="ft-step-dot">
+    <div class="ft-step-dot {% if not success %}failure{% endif %}">
       {% if success %}<i class="bi bi-check"></i>{% else %}<i class="bi bi-x"></i>{% endif %}
-    </div>Done
+    </div>{% if success %}Done{% else %}Failure{% endif %}
   </div>
 </div>
 

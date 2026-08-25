@@ -18,23 +18,24 @@ import pexpect
 
 app = Flask(__name__)
 
-# ── Constants ─────────────────────────────────────────────────────────────────
+# -- Constants -----------------------------------------------------------------
 
-INSTALLER_PI_URL  = "https://raw.githubusercontent.com/ColinWaddell/FlightTracker/main/platforms/pi/install.sh"
+INSTALLER_PI_URL = "https://raw.githubusercontent.com/ColinWaddell/FlightTracker/main/platforms/pi/install.sh"
 INSTALLER_PI5_URL = "https://raw.githubusercontent.com/ColinWaddell/FlightTracker/main/platforms/pi5/install.sh"
-SENTINEL_FILE     = "/opt/flighttracker-installer/.installed"
-INSTALL_SCRIPT    = "/tmp/ft-install.sh"
+SENTINEL_FILE = "/opt/flighttracker-installer/.installed"
+INSTALL_SCRIPT = "/tmp/ft-install.sh"
 
-# ── Global install state ───────────────────────────────────────────────────────
+# -- Global install state -------------------------------------------------------
 
 _output_queue: queue.Queue = queue.Queue()
 _install_thread: threading.Thread | None = None
-_install_running  = False
-_install_success  = False
-_install_error    = None
+_install_running = False
+_install_success = False
+_install_error = None
 
 
-# ── Hardware detection ────────────────────────────────────────────────────────
+# -- Hardware detection --------------------------------------------------------
+
 
 def get_pi_model() -> str:
     try:
@@ -52,7 +53,8 @@ def strip_ansi(text: str) -> str:
     return re.sub(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "", text)
 
 
-# ── Installer runner ──────────────────────────────────────────────────────────
+# -- Installer runner ----------------------------------------------------------
+
 
 def _emit(line: str) -> None:
     """Push a line of output to the SSE queue."""
@@ -64,44 +66,44 @@ def run_installer(config: dict) -> None:
 
     _install_running = True
     _install_success = False
-    _install_error   = None
-    model            = get_pi_model()
-    pi5              = is_pi5(model)
+    _install_error = None
+    model = get_pi_model()
+    pi5 = is_pi5(model)
 
     try:
-        # ── Download the installer script ─────────────────────────────────────
+        # -- Download the installer script -------------------------------------
         url = INSTALLER_PI5_URL if pi5 else INSTALLER_PI_URL
         _emit(f"Downloading installer for {model}…\n")
         result = subprocess.run(
-            ["curl", "-fsSL", url, "-o", INSTALL_SCRIPT],
-            capture_output=True, text=True
+            ["curl", "-fsSL", url, "-o", INSTALL_SCRIPT], capture_output=True, text=True
         )
         if result.returncode != 0:
             raise RuntimeError(f"Failed to download installer:\n{result.stderr}")
         os.chmod(INSTALL_SCRIPT, 0o755)
         _emit("Download complete.\n\n")
 
-        # ── Spawn the installer via pexpect ───────────────────────────────────
+        # -- Spawn the installer via pexpect -----------------------------------
         child = pexpect.spawn(
-            "bash", [INSTALL_SCRIPT],
+            "bash",
+            [INSTALL_SCRIPT],
             timeout=600,
             encoding="utf-8",
-            codec_errors="replace"
+            codec_errors="replace",
         )
 
         # Expected prompts in order. pexpect.TIMEOUT and pexpect.EOF always last.
         PROMPTS = [
-            r"Ready to begin installation\?",    # 0
-            r"Select interface board type:",      # 1
+            r"Ready to begin installation\?",  # 0
+            r"Select interface board type:",  # 1
             r"Install realtime clock support\?",  # 2
-            r"What is thy bidding\?",             # 3
-            r"reserve a core",                    # 4 (cpu isolation menu)
-            r"Continue with these settings\?",    # 4
-            r"Reboot now\?",                      # 5
-            r"Would you like to uninstall",       # 6 (existing install)
-            r"Continue anyway\?",                 # 7 (non-debian warning)
-            pexpect.EOF,                          # 8
-            pexpect.TIMEOUT,                      # 9
+            r"What is thy bidding\?",  # 3
+            r"reserve a core",  # 4 (cpu isolation menu)
+            r"Continue with these settings\?",  # 4
+            r"Reboot now\?",  # 5
+            r"Would you like to uninstall",  # 6 (existing install)
+            r"Continue anyway\?",  # 7 (non-debian warning)
+            pexpect.EOF,  # 8
+            pexpect.TIMEOUT,  # 9
         ]
 
         while True:
@@ -112,7 +114,7 @@ def run_installer(config: dict) -> None:
             if before:
                 _emit(before)
 
-            if idx == 0:    # Ready to begin
+            if idx == 0:  # Ready to begin
                 _emit("» y\n")
                 child.sendline("y")
 
@@ -133,19 +135,17 @@ def run_installer(config: dict) -> None:
                 _emit("» y\n")
                 child.sendline("y")
 
-            elif idx == 5:  # Reboot now — always decline; we handle it
+            elif idx == 5:  # Reboot now - always decline; we handle it
                 _emit("» n (reboot managed by installer UI)\n")
                 child.sendline("n")
 
-            elif idx == 6:  # Existing install — uninstall it
+            elif (
+                idx == 6 or idx == 7
+            ):  # Existing install or Non-debian warning - uninstall it
                 _emit("» y\n")
                 child.sendline("y")
 
-            elif idx == 7:  # Non-debian warning
-                _emit("» y\n")
-                child.sendline("y")
-
-            elif idx == 8:  # EOF — installer finished
+            elif idx == 8:  # EOF - installer finished
                 after = strip_ansi(child.after or "")
                 if after and after is not pexpect.EOF:
                     _emit(after)
@@ -158,7 +158,7 @@ def run_installer(config: dict) -> None:
         if child.exitstatus and child.exitstatus != 0:
             raise RuntimeError(f"Installer exited with code {child.exitstatus}")
 
-        # ── Mark as installed ─────────────────────────────────────────────────
+        # -- Mark as installed -------------------------------------------------
         open(SENTINEL_FILE, "w").close()
         _install_success = True
         _emit("\n\n✓ Installation complete.\n")
@@ -169,10 +169,11 @@ def run_installer(config: dict) -> None:
 
     finally:
         _install_running = False
-        _output_queue.put(None)  # Sentinel — tells SSE stream to close
+        _output_queue.put(None)  # Sentinel - tells SSE stream to close
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# -- Routes --------------------------------------------------------------------
+
 
 @app.route("/")
 def index():
@@ -183,7 +184,7 @@ def index():
 @app.route("/config")
 def config():
     model = get_pi_model()
-    pi5   = is_pi5(model)
+    pi5 = is_pi5(model)
     return render_template("config.html", model=model, pi5=pi5)
 
 
@@ -197,16 +198,14 @@ def install():
     # Collect form values
     cfg = {
         "interface_type": request.form.get("interface_type", "1"),
-        "install_rtc":    request.form.get("install_rtc") == "1",
-        "quality_mode":   request.form.get("quality_mode", "2"),
+        "install_rtc": request.form.get("install_rtc") == "1",
+        "quality_mode": request.form.get("quality_mode", "2"),
     }
 
     # Fresh queue for this run
     _output_queue = queue.Queue()
 
-    _install_thread = threading.Thread(
-        target=run_installer, args=(cfg,), daemon=True
-    )
+    _install_thread = threading.Thread(target=run_installer, args=(cfg,), daemon=True)
     _install_thread.start()
 
     return redirect(url_for("progress"))
@@ -221,6 +220,7 @@ def progress():
 @app.route("/events")
 def events():
     """Server-Sent Events stream of installer output."""
+
     def generate():
         while True:
             try:
@@ -240,24 +240,28 @@ def events():
             escaped = chunk.replace("\n", "\ndata: ")
             yield f"data: {escaped}\n\n"
 
-    return Response(generate(), mimetype="text/event-stream",
-                    headers={"X-Accel-Buffering": "no",
-                             "Cache-Control": "no-cache"})
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
+    )
 
 
 @app.route("/done")
 def done():
     model = get_pi_model()
-    return render_template("done.html", model=model,
-                           success=_install_success,
-                           error=_install_error)
+    return render_template(
+        "done.html", model=model, success=_install_success, error=_install_error
+    )
 
 
 @app.route("/reboot", methods=["POST"])
 def reboot():
     """Trigger a system reboot. Called from the done page."""
+
     def _reboot():
         import time
+
         time.sleep(1)
         subprocess.run(["reboot"])
 
@@ -265,7 +269,7 @@ def reboot():
     return render_template("rebooting.html")
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
+# -- Entry point ---------------------------------------------------------------
 
 if __name__ == "__main__":
     # Port 80 requires root; the systemd unit runs as root.
