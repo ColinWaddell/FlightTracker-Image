@@ -96,5 +96,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: flighttracker-os-armhf
-          path: flighttracker-os-armhf.xz
+          path: image_*-flighttracker-os-armhf-lite.img.xz
           retention-days: 7
