@@ -22,11 +22,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install qemu-user-static for armhf cross-build
+      - name: Enable binfmt_misc and install qemu for armhf cross-build
         if: matrix.arch == 'armhf'
         run: |
+          # Install qemu-user-static which includes qemu-arm
           sudo apt-get update
-          sudo apt-get install -y qemu-user-static
+          sudo apt-get install -y qemu-user-static binfmt-support
+          
+          # Mount binfmt_misc if not already mounted
+          sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true
+          
+          # Register qemu-arm for armhf binaries
+          sudo update-binfmts --enable qemu-arm || true
+          
+          # Alternative: use docker's binfmt registration
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes || true
+          
+          # Verify registration
+          cat /proc/sys/fs/binfmt_misc/qemu-arm 2>/dev/null || echo "qemu-arm not registered"
 
       - name: Build ${{ matrix.arch }} image
         uses: usimd/pi-gen-action@v1.11.0
