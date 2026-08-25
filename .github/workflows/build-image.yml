@@ -51,11 +51,18 @@ jobs:
           # Fix: Replace stale raspberrypi.gpg keyring (SHA-1 signatures rejected by modern GPG)
           # See https://github.com/RPi-Distro/pi-gen/issues/862
           # The key in pi-gen's repo uses SHA-1 signatures which GPG in trixie rejects.
-          # Download the updated keyring from the raspberrypi-archive-keyring package.
+          # Download updated keyrings from both Raspberry Pi Archive and Raspbian packages.
+          # 1. Raspberry Pi Archive key (archive.raspberrypi.com)
           curl -sL 'http://archive.raspberrypi.com/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2025.1+rpt1_all.deb' -o /tmp/rpi-keyring.deb
           dpkg-deb -x /tmp/rpi-keyring.deb /tmp/rpi-keyring
-          cp /tmp/rpi-keyring/usr/share/keyrings/raspberrypi-archive-keyring.pgp pi-gen/stage0/files/raspberrypi.gpg
-          rm -rf /tmp/rpi-keyring /tmp/rpi-keyring.deb
+          # 2. Raspbian key (raspbian.raspberrypi.com) — Mike Thompson's key, also re-signed
+          curl -sL 'http://raspbian.raspberrypi.com/raspbian/pool/main/r/raspbian-archive-keyring/raspbian-archive-keyring_20120528.4_all.deb' -o /tmp/raspbian-keyring.deb
+          dpkg-deb -x /tmp/raspbian-keyring.deb /tmp/raspbian-keyring
+          # Merge both keyrings into one file
+          gpg --no-default-keyring --keyring /tmp/merged.gpg --import /tmp/rpi-keyring/usr/share/keyrings/raspberrypi-archive-keyring.pgp 2>/dev/null
+          gpg --no-default-keyring --keyring /tmp/merged.gpg --import /tmp/raspbian-keyring/usr/share/keyrings/raspbian-archive-keyring.gpg 2>/dev/null
+          gpg --no-default-keyring --keyring /tmp/merged.gpg --export > pi-gen/stage0/files/raspberrypi.gpg
+          rm -rf /tmp/rpi-keyring /tmp/rpi-keyring.deb /tmp/raspbian-keyring /tmp/raspbian-keyring.deb /tmp/merged.gpg*
           
           # Copy our custom stage into pi-gen
           cp -r image/stage-flighttracker pi-gen/stage-flighttracker
