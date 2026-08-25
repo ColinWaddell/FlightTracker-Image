@@ -38,7 +38,6 @@ jobs:
           keyboard-layout: English (UK)
           timezone: Europe/London
           enable-ssh: 1
-          disable-first-boot-user-rename: 1
           enable-cloud-init: 0
           verbose-output: true
 
