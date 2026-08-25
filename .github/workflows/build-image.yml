@@ -22,43 +22,63 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup qemu-arm symlink for armhf cross-build
+      - name: Setup qemu for armhf cross-build
         if: matrix.arch == 'armhf'
         run: |
-          # pi-gen-action installs qemu-user-static but only symlinks qemu-aarch64.
-          # build-docker.sh needs qemu-arm in PATH on the host.
+          # Install qemu-user-static (statically linked, F flag) and remove
+          # qemu-user-binfmt (dynamically linked, no F flag) if present
+          sudo apt-get update
+          sudo apt-get -y install qemu-user-static binfmt-support
+          sudo apt-get -y remove qemu-user-binfmt 2>/dev/null || true
+          
+          # Create symlink so build-docker.sh finds qemu-arm in PATH
           sudo ln -sf /usr/bin/qemu-arm-static /usr/local/bin/qemu-arm
           
-          # Register qemu-arm with F flag on host so it works inside containers
+          # Mount binfmt_misc and register qemu-arm with F flag
           sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true
           echo ':qemu-arm-rpi:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-arm-static:F' | sudo tee /proc/sys/fs/binfmt_misc/register >/dev/null 2>&1 || true
           
           # Verify
-          cat /proc/sys/fs/binfmt_misc/qemu-arm-rpi 2>/dev/null || cat /proc/sys/fs/binfmt_misc/qemu-arm 2>/dev/null || echo "qemu-arm not registered"
+          cat /proc/sys/fs/binfmt_misc/qemu-arm-rpi 2>/dev/null || cat /proc/sys/fs/binfmt_misc/qemu-arm 2>/dev/null || echo "WARNING: qemu-arm not registered"
 
-      - name: Build ${{ matrix.arch }} image
-        uses: usimd/pi-gen-action@v1.11.0
-        id: build
-        with:
-          image-name: flighttracker-os-${{ matrix.arch }}
-          stage-list: stage0 stage1 stage2 ./image/stage-flighttracker
-          compression: xz
-          pi-gen-release: ${{ matrix.arch == 'arm64' && 'arm64' || 'armhf' }}
-          pi-gen-version: ${{ matrix.arch == 'arm64' && 'arm64' || 'master' }}
-          release: trixie
-          docker-opts: ${{ matrix.arch == 'armhf' && '--security-opt seccomp=unconfined' || '' }}
-          locale: en_GB.UTF-8
-          hostname: flighttracker
-          keyboard-keymap: gb
-          keyboard-layout: English (UK)
-          timezone: Europe/London
-          enable-ssh: 1
-          enable-cloud-init: 0
-          verbose-output: true
+      - name: Clone pi-gen and build image
+        run: |
+          set -e
+          
+          # Clone pi-gen
+          git clone --depth 1 -b master https://github.com/RPi-Distro/pi-gen.git pi-gen
+          
+          # Copy our custom stage into pi-gen
+          cp -r image/stage-flighttracker pi-gen/stage-flighttracker
+          
+          # Create pi-gen config
+          {
+            echo 'IMG_NAME="flighttracker-os-armhf"'
+            echo 'RELEASE="trixie"'
+            echo 'LOCALE_DEFAULT="en_GB.UTF-8"'
+            echo 'TARGET_HOSTNAME="flighttracker"'
+            echo 'KEYBOARD_KEYMAP="gb"'
+            echo 'KEYBOARD_LAYOUT="English (UK)"'
+            echo 'TIMEZONE_DEFAULT="Europe/London"'
+            echo 'FIRST_USER_NAME="pi"'
+            echo 'ENABLE_SSH=1'
+            echo 'STAGE_LIST="stage0 stage1 stage2 stage-flighttracker"'
+            echo 'DEPLOY_COMPRESSION="xz"'
+          } > pi-gen/config
+          
+          # Ensure last stage has EXPORT_IMAGE
+          touch pi-gen/stage-flighttracker/EXPORT_IMAGE
+          
+          # Build using docker (build-docker.sh passes -c to get config path)
+          cd pi-gen
+          PIGEN_DOCKER_OPTS="" ./build-docker.sh
+          
+          # Copy artifacts
+          cp deploy/*.xz ../
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: flighttracker-os-${{ matrix.arch }}
-          path: ${{ steps.build.outputs.image-path }}
+          name: flighttracker-os-armhf
+          path: flighttracker-os-armhf.xz
           retention-days: 7
