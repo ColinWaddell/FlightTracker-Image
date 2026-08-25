@@ -30,6 +30,7 @@ jobs:
           stage-list: stage0 stage1 stage2 ./image/stage-flighttracker
           compression: xz
           pi-gen-release: ${{ matrix.arch == 'arm64' && 'arm64' || 'armhf' }}
+          extra-host-dependencies: ${{ matrix.arch == 'armhf' && 'qemu-user-static' || '' }}
           release: trixie
           locale: en_GB.UTF-8
           hostname: flighttracker
