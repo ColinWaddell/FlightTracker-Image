@@ -3,67 +3,65 @@
 {% block title %}FlightTracker Installer — {{ "Done" if success else "Failed" }}{% endblock %}
 
 {% block content %}
-<div class="steps">
-  <div class="step done"><div class="step-dot">✓</div>Welcome</div>
-  <div class="step done"><div class="step-dot">✓</div>Configure</div>
-  <div class="step done"><div class="step-dot">✓</div>Install</div>
-  <div class="step {% if success %}active{% else %}done{% endif %}">
-    <div class="step-dot">{% if success %}4{% else %}✗{% endif %}</div>Done
+<div class="ft-steps mb-4">
+  <div class="ft-step done"><div class="ft-step-dot"><i class="bi bi-check"></i></div>Welcome</div>
+  <div class="ft-step done"><div class="ft-step-dot"><i class="bi bi-check"></i></div>Configure</div>
+  <div class="ft-step done"><div class="ft-step-dot"><i class="bi bi-check"></i></div>Install</div>
+  <div class="ft-step {% if success %}active{% else %}done{% endif %}">
+    <div class="ft-step-dot">
+      {% if success %}<i class="bi bi-check"></i>{% else %}<i class="bi bi-x"></i>{% endif %}
+    </div>Done
   </div>
 </div>
 
 {% if success %}
 
-<h1>FlightTracker is installed</h1>
-<p class="subtitle">
-  Reboot your Pi to start the FlightTracker display.<br>
-  This installer will be disabled automatically after reboot.
-</p>
+<div class="text-center mb-4">
+  <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+  <h4 class="fw-bold mt-3 mb-1">FlightTracker is installed</h4>
+  <p class="text-muted">
+    Reboot your Pi to start the FlightTracker display.<br>
+    This installer will be disabled automatically after reboot.
+  </p>
+</div>
 
-<div class="card" style="border-color: var(--radar);">
-  <div class="card-title">What happens next</div>
-  <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem;">
-    <li style="display:flex; gap:0.6rem;">
-      <span style="color:var(--radar); flex-shrink:0;">1.</span>
-      Click <strong>Reboot Now</strong> below
-    </li>
-    <li style="display:flex; gap:0.6rem;">
-      <span style="color:var(--radar); flex-shrink:0;">2.</span>
-      Wait ~30 seconds for your Pi to restart
-    </li>
-    <li style="display:flex; gap:0.6rem;">
-      <span style="color:var(--radar); flex-shrink:0;">3.</span>
-      FlightTracker will start automatically on the LED display
-    </li>
-  </ul>
+<div class="card mb-4 p-3">
+  <div class="section-heading">What happens next</div>
+  <ol class="mb-0" style="display:flex; flex-direction:column; gap:.5rem; padding-left: 1.25rem;">
+    <li>Click <strong>Reboot Now</strong> below</li>
+    <li>Wait ~30 seconds for your Pi to restart</li>
+    <li>FlightTracker will start automatically on the LED display</li>
+  </ol>
 </div>
 
 <form method="POST" action="/reboot">
-  <button type="submit" class="btn btn-primary btn-full" style="font-size: 1.1rem; padding: 1rem;">
-    Reboot Now
+  <button type="submit" class="btn btn-success w-100">
+    <i class="bi bi-power me-2"></i>Reboot Now
   </button>
 </form>
 
 {% else %}
 
-<h1>Installation failed</h1>
-<p class="subtitle">
-  Something went wrong. See the error below, then try again.
-</p>
+<div class="text-center mb-4">
+  <i class="bi bi-x-circle-fill text-danger" style="font-size: 3rem;"></i>
+  <h4 class="fw-bold mt-3 mb-1">Installation failed</h4>
+  <p class="text-muted">Something went wrong. See the error below, then try again.</p>
+</div>
 
 {% if error %}
-<div class="card" style="border-color: var(--red);">
-  <div class="card-title" style="color: var(--red);">Error</div>
-  <pre style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--red);
-              white-space: pre-wrap; word-break: break-all;">{{ error }}</pre>
+<div class="card mb-4 p-3 border-danger-subtle">
+  <div class="section-heading text-danger">Error</div>
+  <pre class="text-danger mb-0" style="font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: .8rem; white-space: pre-wrap; word-break: break-all;">{{ error }}</pre>
 </div>
 {% endif %}
 
-<div class="actions">
-  <a href="/" class="btn btn-outline">Start over</a>
-  <a href="https://github.com/ColinWaddell/FlightTracker/issues"
-     target="_blank" class="btn btn-outline">
-    Report an issue
+<div class="d-flex gap-2">
+  <a href="/" class="btn btn-outline-secondary flex-fill">
+    <i class="bi bi-arrow-counterclockwise me-1"></i> Start over
+  </a>
+  <a href="https://github.com/ColinWaddell/FlightTracker/issues" target="_blank"
+     class="btn btn-outline-secondary flex-fill">
+    <i class="bi bi-bug me-1"></i> Report an issue
   </a>
 </div>
 

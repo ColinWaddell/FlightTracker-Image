@@ -96,12 +96,12 @@ def run_installer(config: dict) -> None:
             r"Install realtime clock support\?",  # 2
             r"What is thy bidding\?",             # 3
             r"reserve a core",                    # 4 (cpu isolation menu)
-            r"Continue with these settings\?",    # 5
-            r"Reboot now\?",                      # 6
-            r"Would you like to uninstall",       # 7 (existing install)
-            r"Continue anyway\?",                 # 8 (non-debian warning)
-            pexpect.EOF,                          # 9
-            pexpect.TIMEOUT,                      # 10
+            r"Continue with these settings\?",    # 4
+            r"Reboot now\?",                      # 5
+            r"Would you like to uninstall",       # 6 (existing install)
+            r"Continue anyway\?",                 # 7 (non-debian warning)
+            pexpect.EOF,                          # 8
+            pexpect.TIMEOUT,                      # 9
         ]
 
         while True:
@@ -129,33 +129,29 @@ def run_installer(config: dict) -> None:
                 _emit("\n» Selecting display mode…\n")
                 child.sendline(str(config.get("quality_mode", "2")))
 
-            elif idx == 4:  # CPU isolation
-                _emit("\n» Selecting CPU isolation…\n")
-                child.sendline(str(config.get("cpu_isolation", "2")))
-
-            elif idx == 5:  # Continue with settings
+            elif idx == 4:  # Continue with settings
                 _emit("» y\n")
                 child.sendline("y")
 
-            elif idx == 6:  # Reboot now — always decline; we handle it
+            elif idx == 5:  # Reboot now — always decline; we handle it
                 _emit("» n (reboot managed by installer UI)\n")
                 child.sendline("n")
 
-            elif idx == 7:  # Existing install — uninstall it
+            elif idx == 6:  # Existing install — uninstall it
                 _emit("» y\n")
                 child.sendline("y")
 
-            elif idx == 8:  # Non-debian warning
+            elif idx == 7:  # Non-debian warning
                 _emit("» y\n")
                 child.sendline("y")
 
-            elif idx == 9:  # EOF — installer finished
+            elif idx == 8:  # EOF — installer finished
                 after = strip_ansi(child.after or "")
                 if after and after is not pexpect.EOF:
                     _emit(after)
                 break
 
-            elif idx == 10:  # Timeout
+            elif idx == 9:  # Timeout
                 raise RuntimeError("Installation timed out waiting for a response.")
 
         child.close()
@@ -203,7 +199,6 @@ def install():
         "interface_type": request.form.get("interface_type", "1"),
         "install_rtc":    request.form.get("install_rtc") == "1",
         "quality_mode":   request.form.get("quality_mode", "2"),
-        "cpu_isolation":  request.form.get("cpu_isolation", "2"),
     }
 
     # Fresh queue for this run

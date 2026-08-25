@@ -3,69 +3,68 @@
 {% block title %}FlightTracker Installer — Welcome{% endblock %}
 
 {% block content %}
-<div class="steps">
-  <div class="step active"><div class="step-dot">1</div>Welcome</div>
-  <div class="step"><div class="step-dot">2</div>Configure</div>
-  <div class="step"><div class="step-dot">3</div>Install</div>
-  <div class="step"><div class="step-dot">4</div>Done</div>
+<div class="ft-steps mb-4">
+  <div class="ft-step active"><div class="ft-step-dot">1</div>Welcome</div>
+  <div class="ft-step"><div class="ft-step-dot">2</div>Configure</div>
+  <div class="ft-step"><div class="ft-step-dot">3</div>Install</div>
+  <div class="ft-step"><div class="ft-step-dot">4</div>Done</div>
 </div>
 
-<h1>Welcome to FlightTracker</h1>
-<p class="subtitle">
+<h4 class="fw-bold mb-1">Welcome to FlightTracker</h4>
+<p class="text-muted mb-4">
   This installer will set up FlightTracker on your {{ model }}.<br>
   Make sure your Pi is connected to the internet before continuing.
 </p>
 
-<div class="card">
-  <div class="card-title">What this installer does</div>
-  <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem;">
-    <li style="display:flex; gap:0.6rem; align-items:flex-start;">
-      <span style="color:var(--radar); flex-shrink:0;">✓</span>
+<div class="card mb-3 p-3">
+  <div class="section-heading">What this installer does</div>
+  <ul class="list-unstyled mb-0" style="display:flex; flex-direction:column; gap:.5rem;">
+    <li class="d-flex gap-2">
+      <i class="bi bi-check-circle-fill text-success flex-shrink-0 mt-1"></i>
       Clones the FlightTracker repository from GitHub
     </li>
-    <li style="display:flex; gap:0.6rem; align-items:flex-start;">
-      <span style="color:var(--radar); flex-shrink:0;">✓</span>
+    <li class="d-flex gap-2">
+      <i class="bi bi-check-circle-fill text-success flex-shrink-0 mt-1"></i>
       Installs all dependencies for your hardware
     </li>
-    <li style="display:flex; gap:0.6rem; align-items:flex-start;">
-      <span style="color:var(--radar); flex-shrink:0;">✓</span>
+    <li class="d-flex gap-2">
+      <i class="bi bi-check-circle-fill text-success flex-shrink-0 mt-1"></i>
       Configures a systemd service so FlightTracker starts on boot
     </li>
-    <li style="display:flex; gap:0.6rem; align-items:flex-start;">
-      <span style="color:var(--radar); flex-shrink:0;">✓</span>
+    <li class="d-flex gap-2">
+      <i class="bi bi-check-circle-fill text-success flex-shrink-0 mt-1"></i>
       Reboots into the running FlightTracker display
     </li>
   </ul>
 </div>
 
-<div class="card">
-  <div class="card-title">Before you continue</div>
-  <div id="net-check" style="color: var(--text-dim); font-size: 0.9rem;">
-    Checking internet connectivity…
+<div class="card mb-4 p-3">
+  <div class="section-heading">Before you continue</div>
+  <div id="net-check" class="text-muted small">
+    <span class="spinner-border spinner-border-sm me-1"></span> Checking internet connectivity…
   </div>
 </div>
 
-<div class="actions">
-  <a href="/config" class="btn btn-primary btn-full" id="continue-btn" style="opacity:0.4; pointer-events:none;">
-    Continue →
-  </a>
-</div>
+<a href="/config" class="btn btn-primary w-100" id="continue-btn"
+   style="opacity:0.4; pointer-events:none;">
+  Continue <i class="bi bi-arrow-right ms-1"></i>
+</a>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  // Simple connectivity check — ping GitHub
   fetch("https://github.com", { mode: "no-cors", cache: "no-store" })
     .then(() => {
       document.getElementById("net-check").innerHTML =
-        '<span style="color:var(--radar);">✓ Internet connection detected</span>';
+        '<i class="bi bi-wifi text-success me-1"></i><span class="text-success">Internet connection detected</span>';
       const btn = document.getElementById("continue-btn");
       btn.style.opacity = "1";
       btn.style.pointerEvents = "auto";
     })
     .catch(() => {
       document.getElementById("net-check").innerHTML =
-        '<span style="color:var(--red);">✗ No internet connection detected. ' +
+        '<i class="bi bi-wifi-off text-danger me-1"></i>' +
+        '<span class="text-danger">No internet connection detected. ' +
         'Please check your Wi-Fi settings and reload this page.</span>';
     });
 </script>

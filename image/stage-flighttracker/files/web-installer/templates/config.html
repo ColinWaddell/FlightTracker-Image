@@ -3,32 +3,34 @@
 {% block title %}FlightTracker Installer — Configure{% endblock %}
 
 {% block content %}
-<div class="steps">
-  <div class="step done"><div class="step-dot">✓</div>Welcome</div>
-  <div class="step active"><div class="step-dot">2</div>Configure</div>
-  <div class="step"><div class="step-dot">3</div>Install</div>
-  <div class="step"><div class="step-dot">4</div>Done</div>
+<div class="ft-steps mb-4">
+  <div class="ft-step done"><div class="ft-step-dot"><i class="bi bi-check"></i></div>Welcome</div>
+  <div class="ft-step active"><div class="ft-step-dot">2</div>Configure</div>
+  <div class="ft-step"><div class="ft-step-dot">3</div>Install</div>
+  <div class="ft-step"><div class="ft-step-dot">4</div>Done</div>
 </div>
 
-<h1>Hardware Configuration</h1>
+<h4 class="fw-bold mb-1">Hardware Configuration</h4>
 
 {% if pi5 %}
-<p class="subtitle">
+<p class="text-muted mb-4">
   Your {{ model }} was detected. The Pi 5 installer is fully automatic —
   no hardware configuration is required. Hit <strong>Install</strong> to begin.
 </p>
 
 <form method="POST" action="/install">
-  <div class="actions">
-    <a href="/" class="btn btn-outline">← Back</a>
-    <button type="submit" class="btn btn-primary" style="flex:1;">
-      Install FlightTracker
+  <div class="d-flex gap-2 mt-3">
+    <a href="/" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i> Back
+    </a>
+    <button type="submit" class="btn btn-primary flex-fill">
+      Install FlightTracker <i class="bi bi-arrow-right ms-1"></i>
     </button>
   </div>
 </form>
 
 {% else %}
-<p class="subtitle">
+<p class="text-muted mb-4">
   Your {{ model }} was detected. Answer a few questions about your hardware
   so the installer can configure FlightTracker correctly.
 </p>
@@ -36,90 +38,70 @@
 <form method="POST" action="/install" id="config-form">
 
   <!-- Interface board -->
-  <div class="card">
-    <div class="card-title">RGB Matrix Interface Board</div>
-    <fieldset class="radio-group" id="interface-group">
-      <label class="radio-option">
-        <input type="radio" name="interface_type" value="1" checked>
-        <div class="option-text">
-          <strong>Adafruit RGB Matrix Bonnet</strong>
-          <small>Compact add-on board, soldering not required</small>
+  <div class="card mb-3 p-3">
+    <div class="section-heading">RGB Matrix Interface Board</div>
+    <div class="d-flex flex-column gap-2">
+      <label class="card p-3 mb-0 d-flex flex-row align-items-start gap-3" style="cursor:pointer; box-shadow:none; border:1px solid #dee2e6 !important;">
+        <input class="form-check-input flex-shrink-0 mt-1" type="radio" name="interface_type" value="1" checked>
+        <div>
+          <div class="fw-semibold">Adafruit RGB Matrix Bonnet</div>
+          <div class="form-text">Compact add-on board, soldering not required</div>
         </div>
       </label>
-      <label class="radio-option">
-        <input type="radio" name="interface_type" value="2" id="hat-radio">
-        <div class="option-text">
-          <strong>Adafruit RGB Matrix HAT + RTC</strong>
-          <small>Full HAT with real-time clock option</small>
+      <label class="card p-3 mb-0 d-flex flex-row align-items-start gap-3" style="cursor:pointer; box-shadow:none; border:1px solid #dee2e6 !important;" id="hat-label">
+        <input class="form-check-input flex-shrink-0 mt-1" type="radio" name="interface_type" value="2" id="hat-radio">
+        <div>
+          <div class="fw-semibold">Adafruit RGB Matrix HAT + RTC</div>
+          <div class="form-text">Full HAT with real-time clock option</div>
         </div>
       </label>
-    </fieldset>
+    </div>
 
     <!-- RTC sub-option, shown only when HAT is selected -->
-    <div id="rtc-option" style="display:none; margin-top:1rem;">
-      <label class="checkbox-option">
-        <input type="checkbox" name="install_rtc" value="1">
-        <div class="option-text">
-          <strong>Install real-time clock (RTC) support</strong>
-          <small>Required if you want accurate time without internet</small>
+    <div id="rtc-option" class="mt-3" style="display:none;">
+      <label class="card p-3 mb-0 d-flex flex-row align-items-center gap-3" style="cursor:pointer; box-shadow:none; border:1px solid #dee2e6 !important;">
+        <input class="form-check-input flex-shrink-0" type="checkbox" name="install_rtc" value="1">
+        <div>
+          <div class="fw-semibold">Install real-time clock (RTC) support</div>
+          <div class="form-text">Required if you want accurate time without internet</div>
         </div>
       </label>
     </div>
   </div>
 
   <!-- Display quality -->
-  <div class="card">
-    <div class="card-title">Display Mode</div>
-    <fieldset class="radio-group">
-      <label class="radio-option">
-        <input type="radio" name="quality_mode" value="1">
-        <div class="option-text">
-          <strong>Quality</strong>
-          <small>Best display output. Disables audio and requires soldering a jumper.</small>
+  <div class="card mb-4 p-3">
+    <div class="section-heading">Display Mode</div>
+    <div class="d-flex flex-column gap-2">
+      <label class="card p-3 mb-0 d-flex flex-row align-items-start gap-3" style="cursor:pointer; box-shadow:none; border:1px solid #dee2e6 !important;">
+        <input class="form-check-input flex-shrink-0 mt-1" type="radio" name="quality_mode" value="1">
+        <div>
+          <div class="fw-semibold">Quality</div>
+          <div class="form-text">Best display output. Disables audio and requires soldering a jumper.</div>
         </div>
       </label>
-      <label class="radio-option">
-        <input type="radio" name="quality_mode" value="2" checked>
-        <div class="option-text">
-          <strong>Convenience</strong>
-          <small>Audio works. No soldering needed. Recommended for most users.</small>
+      <label class="card p-3 mb-0 d-flex flex-row align-items-start gap-3" style="cursor:pointer; box-shadow:none; border:1px solid #dee2e6 !important;">
+        <input class="form-check-input flex-shrink-0 mt-1" type="radio" name="quality_mode" value="2" checked>
+        <div>
+          <div class="fw-semibold">Convenience</div>
+          <div class="form-text">Audio works. No soldering needed. Recommended for most users.</div>
         </div>
       </label>
-    </fieldset>
+    </div>
   </div>
 
-  <!-- CPU isolation -->
-  <div class="card">
-    <div class="card-title">CPU Core Reservation</div>
-    <fieldset class="radio-group">
-      <label class="radio-option">
-        <input type="radio" name="cpu_isolation" value="1">
-        <div class="option-text">
-          <strong>Don't reserve a CPU core</strong>
-          <small>Standard setup, all cores available to the OS</small>
-        </div>
-      </label>
-      <label class="radio-option">
-        <input type="radio" name="cpu_isolation" value="2" checked>
-        <div class="option-text">
-          <strong>Reserve a core for the display</strong>
-          <small>Recommended — smoother display with fewer glitches</small>
-        </div>
-      </label>
-    </fieldset>
-  </div>
-
-  <div class="actions">
-    <a href="/" class="btn btn-outline">← Back</a>
-    <button type="submit" class="btn btn-primary" style="flex:1;">
-      Install FlightTracker →
+  <div class="d-flex gap-2">
+    <a href="/" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i> Back
+    </a>
+    <button type="submit" class="btn btn-primary flex-fill">
+      Install FlightTracker <i class="bi bi-arrow-right ms-1"></i>
     </button>
   </div>
 
 </form>
 
 <script>
-  // Show/hide RTC option based on board selection
   document.querySelectorAll('input[name="interface_type"]').forEach(radio => {
     radio.addEventListener('change', () => {
       document.getElementById('rtc-option').style.display =
