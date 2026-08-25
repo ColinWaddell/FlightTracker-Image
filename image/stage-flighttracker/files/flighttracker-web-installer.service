@@ -1,0 +1,25 @@
+[Unit]
+Description=FlightTracker Web Installer
+Documentation=https://github.com/ColinWaddell/FlightTracker
+After=network-online.target avahi-daemon.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/flighttracker-installer/app.py
+WorkingDirectory=/opt/flighttracker-installer
+Restart=on-failure
+RestartSec=5
+
+# Run as root so the installer can call apt-get, pip, systemctl etc.
+User=root
+
+# Disable after a successful install (the app writes this sentinel file)
+ConditionPathExists=!/opt/flighttracker-installer/.installed
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ft-installer
+
+[Install]
+WantedBy=multi-user.target

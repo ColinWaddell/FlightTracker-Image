@@ -1,0 +1,195 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }} image
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+          - arch: armhf
+            runner: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
+    outputs:
+      # Passed to the release job via artifacts
+      image-name-arm64: flighttracker-os-arm64.img.xz
+      image-name-armhf: flighttracker-os-armhf.img.xz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.arch }} image
+        uses: usimd/pi-gen-action@v1
+        id: build
+        with:
+          image-name: flighttracker-os-${{ matrix.arch }}
+          stage-list: stage0 stage1 stage2 ./image/stage-flighttracker
+          compression: xz
+          pi-gen-release: ${{ matrix.arch == 'arm64' && 'arm64' || 'armhf' }}
+          extra-host-deps: qemu-user-static binfmt-support
+          increase-runner-disk-size: true
+          enable-pigen-cache: false
+          pi-gen-config: |
+            IMG_NAME=flighttracker-os-${{ matrix.arch }}
+            RELEASE=bookworm
+            LOCALE_DEFAULT=en_GB.UTF-8
+            TARGET_HOSTNAME=flighttracker
+            KEYBOARD_KEYMAP=gb
+            KEYBOARD_LAYOUT="English (UK)"
+            TIMEZONE_DEFAULT=Europe/London
+            ENABLE_SSH=1
+            ARCH=${{ matrix.arch }}
+
+      - name: Locate built image
+        id: locate
+        run: |
+          IMG=$(find "${{ steps.build.outputs.image-path }}" -name "*.img.xz" | head -1)
+          echo "path=${IMG}" >> "$GITHUB_OUTPUT"
+          echo "filename=$(basename ${IMG})" >> "$GITHUB_OUTPUT"
+
+      - name: Compute checksums
+        id: checksum
+        run: |
+          IMG="${{ steps.locate.outputs.path }}"
+          SHA256=$(sha256sum "${IMG}" | awk '{print $1}')
+          SIZE=$(stat -c%s "${IMG}")
+          # Uncompressed size (for imager extract_size)
+          EXTRACT_SIZE=$(xz --robot --list "${IMG}" | grep totals | awk '{print $5}')
+          echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+          echo "size=${SIZE}" >> "$GITHUB_OUTPUT"
+          echo "extract_size=${EXTRACT_SIZE}" >> "$GITHUB_OUTPUT"
+
+      - name: Rename image to canonical filename
+        run: |
+          mv "${{ steps.locate.outputs.path }}" \
+             "$(dirname ${{ steps.locate.outputs.path }})/flighttracker-os-${{ matrix.arch }}.img.xz"
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.arch }}
+          path: "$(dirname ${{ steps.locate.outputs.path }})/flighttracker-os-${{ matrix.arch }}.img.xz"
+          retention-days: 1
+
+      - name: Write metadata artifact
+        run: |
+          cat > /tmp/meta-${{ matrix.arch }}.json <<EOF
+          {
+            "arch": "${{ matrix.arch }}",
+            "filename": "flighttracker-os-${{ matrix.arch }}.img.xz",
+            "sha256": "${{ steps.checksum.outputs.sha256 }}",
+            "download_size": ${{ steps.checksum.outputs.size }},
+            "extract_size": ${{ steps.checksum.outputs.extract_size }}
+          }
+          EOF
+
+      - name: Upload metadata artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: meta-${{ matrix.arch }}
+          path: /tmp/meta-${{ matrix.arch }}.json
+          retention-days: 1
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Generate SHA256 sidecar files
+        run: |
+          for arch in arm64 armhf; do
+            IMG="artifacts/image-${arch}/flighttracker-os-${arch}.img.xz"
+            sha256sum "${IMG}" | awk '{print $1}' > "${IMG}.sha256"
+          done
+
+      - name: Update os_list.json
+        run: |
+          TAG="${{ github.ref_name }}"
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}"
+          RELEASE_DATE=$(date +%Y-%m-%d)
+
+          for arch in arm64 armhf; do
+            META=$(cat "artifacts/meta-${arch}/meta-${arch}.json")
+            SHA256=$(echo "${META}" | jq -r '.sha256')
+            DL_SIZE=$(echo "${META}" | jq -r '.download_size')
+            EX_SIZE=$(echo "${META}" | jq -r '.extract_size')
+            URL="${BASE_URL}/flighttracker-os-${arch}.img.xz"
+
+            # Update the matching entry in os_list.json by arch field
+            jq --arg arch "$arch" \
+               --arg url "$URL" \
+               --arg sha256 "$SHA256" \
+               --argjson dl_size "$DL_SIZE" \
+               --argjson ex_size "$EX_SIZE" \
+               --arg date "$RELEASE_DATE" \
+               --arg tag "$TAG" \
+               '(.os_list[] | select(.arch == $arch)) |=
+                 . + {url: $url, extract_sha256: $sha256,
+                      image_download_size: $dl_size,
+                      extract_size: $ex_size,
+                      release_date: $date,
+                      version: $tag}' \
+               os_list.json > os_list.json.tmp
+            mv os_list.json.tmp os_list.json
+          done
+
+      - name: Commit updated os_list.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add os_list.json
+          git commit -m "release: update os_list.json for ${{ github.ref_name }}" || true
+          git push origin HEAD:main
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: FlightTracker OS ${{ github.ref_name }}
+          body: |
+            ## FlightTracker OS ${{ github.ref_name }}
+
+            Flash to an SD card using [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
+            Add the custom OS URL in Imager's "Use custom" option:
+
+            ```
+            https://raw.githubusercontent.com/${{ github.repository }}/main/os_list.json
+            ```
+
+            ### Images
+            | Image | Devices |
+            |-------|---------|
+            | `flighttracker-os-arm64.img.xz` | Pi Zero 2W, Pi 3, Pi 4, Pi 5 (recommended) |
+            | `flighttracker-os-armhf.img.xz` | Pi Zero 2W, Pi 3, Pi 4, Pi 5 (32-bit compatibility) |
+
+            ### After flashing
+            1. Insert SD card, power on your Pi
+            2. Visit `http://flighttracker.local/` in your browser
+            3. Follow the on-screen installer
+          files: |
+            artifacts/image-arm64/flighttracker-os-arm64.img.xz
+            artifacts/image-arm64/flighttracker-os-arm64.img.xz.sha256
+            artifacts/image-armhf/flighttracker-os-armhf.img.xz
+            artifacts/image-armhf/flighttracker-os-armhf.img.xz.sha256

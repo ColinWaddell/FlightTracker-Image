@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}FlightTracker Installer — Installing…{% endblock %}
+
+{% block content %}
+<div class="steps">
+  <div class="step done"><div class="step-dot">✓</div>Welcome</div>
+  <div class="step done"><div class="step-dot">✓</div>Configure</div>
+  <div class="step active"><div class="step-dot">3</div>Install</div>
+  <div class="step"><div class="step-dot">4</div>Done</div>
+</div>
+
+<h1>Installing FlightTracker</h1>
+<p class="subtitle">
+  This will take several minutes. Keep this page open — do not unplug your Pi.
+</p>
+
+<div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem;">
+  <div class="status-badge status-run" id="status-badge">
+    <div class="pulse"></div>
+    <span id="status-text">Installing…</span>
+  </div>
+</div>
+
+<div class="terminal" id="terminal">Connecting to installer…</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const terminal = document.getElementById('terminal');
+  const statusBadge = document.getElementById('status-badge');
+  const statusText = document.getElementById('status-text');
+  const source = new EventSource('/events');
+
+  source.onmessage = function(e) {
+    if (e.data) {
+      terminal.textContent += e.data;
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+  };
+
+  source.addEventListener('done', function(e) {
+    source.close();
+    const success = e.data === 'success';
+
+    statusBadge.className = 'status-badge ' + (success ? 'status-ok' : 'status-err');
+    statusText.textContent = success ? 'Installation complete' : 'Installation failed';
+
+    // Short delay then navigate to done page
+    setTimeout(() => {
+      window.location.href = '/done';
+    }, 1500);
+  });
+
+  source.onerror = function() {
+    // SSE dropped — the Pi may have briefly lost connection; reconnect is automatic.
+    statusText.textContent = 'Reconnecting…';
+  };
+</script>
+{% endblock %}

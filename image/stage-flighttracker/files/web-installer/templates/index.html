@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}FlightTracker Installer — Welcome{% endblock %}
+
+{% block content %}
+<div class="steps">
+  <div class="step active"><div class="step-dot">1</div>Welcome</div>
+  <div class="step"><div class="step-dot">2</div>Configure</div>
+  <div class="step"><div class="step-dot">3</div>Install</div>
+  <div class="step"><div class="step-dot">4</div>Done</div>
+</div>
+
+<h1>Welcome to FlightTracker</h1>
+<p class="subtitle">
+  This installer will set up FlightTracker on your {{ model }}.<br>
+  Make sure your Pi is connected to the internet before continuing.
+</p>
+
+<div class="card">
+  <div class="card-title">What this installer does</div>
+  <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem;">
+    <li style="display:flex; gap:0.6rem; align-items:flex-start;">
+      <span style="color:var(--radar); flex-shrink:0;">✓</span>
+      Clones the FlightTracker repository from GitHub
+    </li>
+    <li style="display:flex; gap:0.6rem; align-items:flex-start;">
+      <span style="color:var(--radar); flex-shrink:0;">✓</span>
+      Installs all dependencies for your hardware
+    </li>
+    <li style="display:flex; gap:0.6rem; align-items:flex-start;">
+      <span style="color:var(--radar); flex-shrink:0;">✓</span>
+      Configures a systemd service so FlightTracker starts on boot
+    </li>
+    <li style="display:flex; gap:0.6rem; align-items:flex-start;">
+      <span style="color:var(--radar); flex-shrink:0;">✓</span>
+      Reboots into the running FlightTracker display
+    </li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="card-title">Before you continue</div>
+  <div id="net-check" style="color: var(--text-dim); font-size: 0.9rem;">
+    Checking internet connectivity…
+  </div>
+</div>
+
+<div class="actions">
+  <a href="/config" class="btn btn-primary btn-full" id="continue-btn" style="opacity:0.4; pointer-events:none;">
+    Continue →
+  </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Simple connectivity check — ping GitHub
+  fetch("https://github.com", { mode: "no-cors", cache: "no-store" })
+    .then(() => {
+      document.getElementById("net-check").innerHTML =
+        '<span style="color:var(--radar);">✓ Internet connection detected</span>';
+      const btn = document.getElementById("continue-btn");
+      btn.style.opacity = "1";
+      btn.style.pointerEvents = "auto";
+    })
+    .catch(() => {
+      document.getElementById("net-check").innerHTML =
+        '<span style="color:var(--red);">✗ No internet connection detected. ' +
+        'Please check your Wi-Fi settings and reload this page.</span>';
+    });
+</script>
+{% endblock %}

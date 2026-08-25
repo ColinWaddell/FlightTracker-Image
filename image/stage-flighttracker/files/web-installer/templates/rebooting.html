@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}FlightTracker — Rebooting{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 3rem 0;">
+  <div style="font-size: 3rem; margin-bottom: 1.5rem; color: var(--radar);">
+    <span id="spinner">↻</span>
+  </div>
+  <h1>Rebooting…</h1>
+  <p class="subtitle" style="text-align: center; margin-top: 0.75rem;">
+    Your Pi is restarting. FlightTracker will start on the display in about 30 seconds.<br>
+    You can close this tab.
+  </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Spin the arrow
+  const spinner = document.getElementById('spinner');
+  let deg = 0;
+  setInterval(() => {
+    deg += 10;
+    spinner.style.transform = `rotate(${deg}deg)`;
+    spinner.style.display = 'inline-block';
+  }, 50);
+</script>
+{% endblock %}

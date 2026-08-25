@@ -1,0 +1,18 @@
+# pi-gen configuration for FlightTracker OS
+# Architecture is overridden by CI per matrix job (arm64 / armhf).
+# When building locally, set ARCH=arm64 or ARCH=armhf before running build.sh.
+
+IMG_NAME="flighttracker-os"
+RELEASE=bookworm
+DEPLOY_COMPRESSION=xz
+
+LOCALE_DEFAULT="en_GB.UTF-8"
+TARGET_HOSTNAME="flighttracker"
+KEYBOARD_KEYMAP="gb"
+KEYBOARD_LAYOUT="English (UK)"
+TIMEZONE_DEFAULT="Europe/London"
+
+ENABLE_SSH=1
+
+# Only build through stage2 (Lite) + our custom stage; skip desktop stages
+STAGE_LIST="stage0 stage1 stage2 ./image/stage-flighttracker"

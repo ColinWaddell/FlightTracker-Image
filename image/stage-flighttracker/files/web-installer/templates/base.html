@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}FlightTracker Installer{% endblock %}</title>
+  <style>
+    /* ── Reset & tokens ──────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0f1e;
+      --bg-card:   #111827;
+      --bg-input:  #1a2235;
+      --border:    #1e2d45;
+      --radar:     #00d4aa;
+      --radar-dim: #00856a;
+      --amber:     #f5a623;
+      --red:       #e74c3c;
+      --text:      #e8eaf0;
+      --text-dim:  #8899aa;
+      --font-ui:   system-ui, -apple-system, sans-serif;
+      --font-mono: 'Courier New', 'Lucida Console', monospace;
+      --radius:    8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────────── */
+    header {
+      width: 100%;
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    header .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--radar);
+      letter-spacing: -0.5px;
+    }
+
+    header .logo span { color: var(--text-dim); font-weight: 400; }
+
+    header .model-badge {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+    }
+
+    /* ── Main content ────────────────────────────────────────────────────── */
+    main {
+      width: 100%;
+      max-width: 680px;
+      padding: 2.5rem 1.5rem;
+      flex: 1;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      color: var(--text);
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    /* ── Cards ───────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+    }
+
+    /* ── Form elements ───────────────────────────────────────────────────── */
+    fieldset { border: none; }
+
+    .field { margin-bottom: 1.25rem; }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: var(--text);
+    }
+
+    label .hint {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 400;
+      color: var(--text-dim);
+      margin-top: 0.1rem;
+    }
+
+    .radio-group { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .radio-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.85rem 1rem;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .radio-option:has(input:checked) {
+      border-color: var(--radar);
+    }
+
+    .radio-option input[type=radio] {
+      margin-top: 0.15rem;
+      accent-color: var(--radar);
+      flex-shrink: 0;
+    }
+
+    .radio-option .option-text strong {
+      display: block;
+      font-size: 0.9rem;
+    }
+
+    .radio-option .option-text small {
+      color: var(--text-dim);
+      font-size: 0.8rem;
+    }
+
+    .checkbox-option {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+    }
+
+    .checkbox-option input[type=checkbox] { accent-color: var(--radar); }
+
+    /* ── Buttons ─────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.8rem 1.75rem;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.98); }
+
+    .btn-primary {
+      background: var(--radar);
+      color: #000;
+    }
+
+    .btn-primary:hover { opacity: 0.9; }
+
+    .btn-danger {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-outline:hover { border-color: var(--radar); }
+
+    .btn-full { width: 100%; }
+
+    /* ── Step indicator ──────────────────────────────────────────────────── */
+    .steps {
+      display: flex;
+      gap: 0;
+      margin-bottom: 2rem;
+      counter-reset: step;
+    }
+
+    .step {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      position: relative;
+    }
+
+    .step::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+      margin: 0 0.5rem;
+    }
+
+    .step:last-child::after { display: none; }
+
+    .step-dot {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700;
+      flex-shrink: 0;
+      margin-right: 0.4rem;
+    }
+
+    .step.active .step-dot {
+      background: var(--radar);
+      border-color: var(--radar);
+      color: #000;
+    }
+
+    .step.done .step-dot {
+      background: var(--radar-dim);
+      border-color: var(--radar-dim);
+      color: #000;
+    }
+
+    /* ── Terminal output ─────────────────────────────────────────────────── */
+    .terminal {
+      background: #050a14;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: #00ff88;
+      min-height: 320px;
+      max-height: 480px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    /* ── Misc ────────────────────────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 1.5rem 0;
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .status-ok  { background: rgba(0,212,170,.15); color: var(--radar); }
+    .status-err { background: rgba(231,76,60,.15);  color: var(--red); }
+    .status-run { background: rgba(245,166,35,.12); color: var(--amber); }
+
+    .pulse {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    footer {
+      width: 100%;
+      text-align: center;
+      padding: 1.25rem;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      border-top: 1px solid var(--border);
+    }
+
+    footer a { color: var(--radar); text-decoration: none; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<header>
+  <div class="logo">✈ Flight<span>Tracker</span></div>
+  {% if model is defined %}
+  <div class="model-badge">{{ model }}</div>
+  {% endif %}
+</header>
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<footer>
+  <a href="https://github.com/ColinWaddell/FlightTracker" target="_blank">FlightTracker on GitHub</a>
+  &nbsp;·&nbsp; Web Installer
+</footer>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>
