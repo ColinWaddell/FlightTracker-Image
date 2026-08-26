@@ -8,19 +8,18 @@ INSTALLER_DIR="${ROOTFS_DIR}/opt/flighttracker-installer"
 
 # -- Web installer app ----------------------------------------------------------
 install -d "${INSTALLER_DIR}/templates"
-install -m 644 files/web-installer/app.py          "${INSTALLER_DIR}/app.py"
-install -m 644 files/web-installer/version.py        "${INSTALLER_DIR}/version.py"
-install -m 644 files/web-installer/requirements.txt "${INSTALLER_DIR}/requirements.txt"
-install -m 644 files/web-installer/templates/*.html "${INSTALLER_DIR}/templates/"
+install -d "${INSTALLER_DIR}/static/images"
+install -m 644 ../files/web-installer/app.py          "${INSTALLER_DIR}/app.py"
+install -m 644 ../files/web-installer/version.py        "${INSTALLER_DIR}/version.py"
+install -m 644 ../files/web-installer/requirements.txt "${INSTALLER_DIR}/requirements.txt"
+install -m 644 ../files/web-installer/templates/*.html "${INSTALLER_DIR}/templates/"
+install -m 644 ../files/web-installer/static/images/*   "${INSTALLER_DIR}/static/images/"
 
 # -- Install Python dependencies into the image ---------------------------------
-# Run pip inside the target rootfs via chroot so we get the right Python
-on_chroot << EOF
-pip3 install --break-system-packages -r /opt/flighttracker-installer/requirements.txt
-EOF
+# Flask and pexpect are installed via apt (00-packages), no pip needed
 
 # -- Systemd service ------------------------------------------------------------
-install -m 644 files/flighttracker-web-installer.service \
+install -m 644 ../files/flighttracker-web-installer.service \
     "${ROOTFS_DIR}/etc/systemd/system/flighttracker-web-installer.service"
 
 systemctl --root="${ROOTFS_DIR}" enable flighttracker-web-installer.service
@@ -31,14 +30,14 @@ systemctl --root="${ROOTFS_DIR}" enable flighttracker-web-installer.service
 systemctl --root="${ROOTFS_DIR}" enable avahi-daemon.service
 
 # -- MOTD ----------------------------------------------------------------------
-install -m 644 files/motd "${ROOTFS_DIR}/etc/motd"
+install -m 644 ../files/motd "${ROOTFS_DIR}/etc/motd"
 # Disable the default dynamic motd scripts that print system info
 chmod -x "${ROOTFS_DIR}/etc/update-motd.d/"* 2>/dev/null || true
 
 # -- Boot splash ---------------------------------------------------------------
 # Firmware splash image shown on HDMI if someone plugs in a monitor
-install -m 644 files/splash.bmp "${ROOTFS_DIR}/boot/firmware/splash.bmp" 2>/dev/null || \
-    install -m 644 files/splash.bmp "${ROOTFS_DIR}/boot/splash.bmp"
+install -m 644 ../files/splash.bmp "${ROOTFS_DIR}/boot/firmware/splash.bmp" 2>/dev/null || \
+    install -m 644 ../files/splash.bmp "${ROOTFS_DIR}/boot/splash.bmp"
 
 # Suppress the default boot text/rainbow and enable our splash image
 for cfg in "${ROOTFS_DIR}/boot/firmware/config.txt" "${ROOTFS_DIR}/boot/config.txt"; do
