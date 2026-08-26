@@ -85,6 +85,13 @@ jobs:
           # Ensure last stage has EXPORT_IMAGE
           touch pi-gen/stage-flighttracker/EXPORT_IMAGE
           
+          # Fix: pi-gen's build-docker.sh picks i386/debian:trixie as base image
+          # on aarch64 runners (assuming cross-build). For native arm64 builds,
+          # override to debian:trixie so Docker pulls the native arm64 image.
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sed -i 's|BASE_IMAGE=i386/debian:trixie|BASE_IMAGE=debian:trixie|' pi-gen/build-docker.sh
+          fi
+          
           # Build using docker (build-docker.sh passes -c to get config path)
           cd pi-gen
           PIGEN_DOCKER_OPTS="" ./build-docker.sh
