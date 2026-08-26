@@ -113,12 +113,18 @@ jobs:
         id: checksum
         run: |
           IMG="${{ steps.locate.outputs.path }}"
-          SHA256=$(sha256sum "${IMG}" | awk '{print $1}')
-          SIZE=$(stat -c%s "${IMG}")
-          # Uncompressed size (for imager extract_size)
-          EXTRACT_SIZE=$(xz --robot --list "${IMG}" | grep totals | awk '{print $5}')
-          echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
-          echo "size=${SIZE}" >> "$GITHUB_OUTPUT"
+          # Compressed file hash (image_download_sha256)
+          DL_SHA256=$(sha256sum "${IMG}" | awk '{print $1}')
+          DL_SIZE=$(stat -c%s "${IMG}")
+          # Extracted image hash (extract_sha256) and size
+          xz -dk "${IMG}"
+          EXTRACTED="${IMG%.xz}"
+          EX_SHA256=$(sha256sum "${EXTRACTED}" | awk '{print $1}')
+          EXTRACT_SIZE=$(stat -c%s "${EXTRACTED}")
+          rm -f "${EXTRACTED}"
+          echo "dl_sha256=${DL_SHA256}" >> "$GITHUB_OUTPUT"
+          echo "ex_sha256=${EX_SHA256}" >> "$GITHUB_OUTPUT"
+          echo "size=${DL_SIZE}" >> "$GITHUB_OUTPUT"
           echo "extract_size=${EXTRACT_SIZE}" >> "$GITHUB_OUTPUT"
 
       - name: Rename image to canonical filename
@@ -138,7 +144,8 @@ jobs:
           {
             "arch": "${{ matrix.arch }}",
             "filename": "flighttracker-os-${{ matrix.arch }}.img.xz",
-            "sha256": "${{ steps.checksum.outputs.sha256 }}",
+            "image_download_sha256": "${{ steps.checksum.outputs.dl_sha256 }}",
+            "extract_sha256": "${{ steps.checksum.outputs.ex_sha256 }}",
             "download_size": ${{ steps.checksum.outputs.size }},
             "extract_size": ${{ steps.checksum.outputs.extract_size }}
           }
@@ -186,7 +193,8 @@ jobs:
 
           for arch in arm64 armhf; do
             META=$(cat "artifacts/meta-${arch}/meta-${arch}.json")
-            SHA256=$(echo "${META}" | jq -r '.sha256')
+            SHA256=$(echo "${META}" | jq -r '.extract_sha256')
+            DL_SHA256=$(echo "${META}" | jq -r '.image_download_sha256')
             DL_SIZE=$(echo "${META}" | jq -r '.download_size')
             EX_SIZE=$(echo "${META}" | jq -r '.extract_size')
             URL="${BASE_URL}/flighttracker-os-${arch}.img.xz"
@@ -202,6 +210,7 @@ jobs:
             jq --arg arch "$arch" \
                --arg url "$URL" \
                --arg sha256 "$SHA256" \
+               --arg dl_sha256 "$DL_SHA256" \
                --argjson dl_size "$DL_SIZE" \
                --argjson ex_size "$EX_SIZE" \
                --arg date "$RELEASE_DATE" \
@@ -209,6 +218,7 @@ jobs:
                --argjson devices "$DEVICES_JSON" \
                '(.os_list[] | select(.url | test("flighttracker-os-" + $arch + "\\.img\\.xz"))) |=
                  . + {url: $url, extract_sha256: $sha256,
+                      image_download_sha256: $dl_sha256,
                       image_download_size: $dl_size,
                       extract_size: $ex_size,
                       release_date: $date,
