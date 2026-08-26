@@ -4,414 +4,270 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FlightTracker - Flash to Raspberry Pi</title>
+  <link rel="icon" type="image/png" href="images/favicon.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
-    /* -- Tokens ------------------------------------------------------------ */
-    :root {
-      --bg:       #0a0f1e;
-      --bg-card:  #111827;
-      --border:   #1e2d45;
-      --radar:    #00d4aa;
-      --amber:    #f5a623;
-      --text:     #e8eaf0;
-      --text-dim: #8899aa;
-      --radius:   10px;
-      --font:     system-ui, -apple-system, sans-serif;
-      --mono:     'Courier New', monospace;
+    body { background: #f8f9fa; }
+
+    .ft-navbar {
+      background: #fff;
+      box-shadow: 0 1px 6px rgba(0,0,0,.1);
+    }
+    .ft-navbar .navbar-brand { font-weight: 600; }
+    .ft-navbar .nav-link { font-size: .9rem; font-weight: 500; color: #495057; }
+    .ft-logo-img { height: 28px; width: auto; }
+
+    .card {
+      border: none;
+      box-shadow: 0 1px 6px rgba(0,0,0,.1);
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font);
-      line-height: 1.6;
-    }
-
-    a { color: var(--radar); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    /* -- Nav --------------------------------------------------------------- */
-    nav {
-      display: flex;
-      align-items: center;
-      padding: 1rem 2rem;
-      border-bottom: 1px solid var(--border);
-      gap: 1rem;
-    }
-
-    .nav-logo {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--radar);
-    }
-
-    .nav-logo span { color: var(--text-dim); font-weight: 400; }
-
-    .nav-links {
-      margin-left: auto;
-      display: flex;
-      gap: 1.5rem;
-      font-size: 0.875rem;
-      color: var(--text-dim);
-    }
-
-    /* -- Hero -------------------------------------------------------------- */
-    .hero {
-      max-width: 760px;
-      margin: 5rem auto 3rem;
-      padding: 0 1.5rem;
-      text-align: center;
-    }
-
-    .hero-eyebrow {
-      display: inline-block;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: var(--radar);
-      border: 1px solid var(--radar);
-      padding: 0.3rem 0.8rem;
-      border-radius: 999px;
-      margin-bottom: 1.5rem;
-    }
-
-    .hero h1 {
-      font-size: clamp(2rem, 5vw, 3.25rem);
-      font-weight: 800;
-      line-height: 1.1;
-      margin-bottom: 1.25rem;
-      letter-spacing: -0.03em;
-    }
-
-    .hero h1 em {
-      font-style: normal;
-      color: var(--radar);
-    }
-
-    .hero p {
-      font-size: 1.1rem;
-      color: var(--text-dim);
-      max-width: 540px;
-      margin: 0 auto 2.5rem;
-    }
-
-    /* -- CTA buttons ------------------------------------------------------- */
-    .cta-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      justify-content: center;
+    .section-heading {
+      font-size: 1.05rem;
+      font-weight: 600;
+      border-bottom: 1px solid #dee2e6;
+      padding-bottom: .4rem;
       margin-bottom: 1rem;
     }
 
-    .btn {
-      display: inline-flex;
+    /* Step indicator */
+    .ft-step {
+      flex: 1;
+      display: flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.85rem 1.75rem;
-      border-radius: var(--radius);
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: opacity 0.15s, transform 0.1s;
-    }
-
-    .btn:active { transform: scale(0.98); }
-
-    .btn-primary {
-      background: var(--radar);
-      color: #000;
-    }
-
-    .btn-primary:hover { opacity: 0.9; text-decoration: none; }
-
-    .btn-secondary {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text);
-    }
-
-    .btn-secondary:hover { border-color: var(--radar); text-decoration: none; }
-
-    .btn-small {
       font-size: 0.8rem;
-      padding: 0.45rem 1rem;
+      color: #6c757d;
+    }
+    .ft-step::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #dee2e6;
+      margin: 0 0.5rem;
+    }
+    .ft-step:last-child::after { display: none; }
+    .ft-step-dot {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid #dee2e6;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700;
+      flex-shrink: 0;
+      margin-right: 0.4rem;
+      color: #6c757d;
+    }
+    .ft-step.active .ft-step-dot {
+      background: #0d6efd;
+      border-color: #0d6efd;
+      color: #fff;
+    }
+    .ft-step.done .ft-step-dot {
+      background: #198754;
+      border-color: #198754;
+      color: #fff;
     }
 
-    /* -- URL copy box ------------------------------------------------------ */
+    /* Copy box */
     .copy-box {
       display: flex;
       align-items: center;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      max-width: 580px;
-      margin: 0 auto 0.5rem;
+      background: #fff;
+      border-radius: .375rem;
+      box-shadow: 0 1px 6px rgba(0,0,0,.1);
       overflow: hidden;
     }
-
     .copy-box code {
       flex: 1;
-      padding: 0.7rem 1rem;
-      font-family: var(--mono);
-      font-size: 0.8rem;
-      color: var(--amber);
+      padding: .7rem 1rem;
+      font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .8rem;
+      color: #d63384;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
     .copy-btn {
       flex-shrink: 0;
       background: transparent;
       border: none;
-      border-left: 1px solid var(--border);
-      color: var(--radar);
-      padding: 0.7rem 1rem;
-      font-size: 0.8rem;
+      border-left: 1px solid #dee2e6;
+      color: #0d6efd;
+      padding: .7rem 1rem;
+      font-size: .8rem;
       cursor: pointer;
-      font-family: var(--font);
       font-weight: 600;
     }
-
-    .copy-btn:hover { background: rgba(0,212,170,.07); }
-
-    .copy-hint {
-      font-size: 0.78rem;
-      color: var(--text-dim);
-      text-align: center;
-    }
-
-    /* -- Steps ------------------------------------------------------------- */
-    .steps-section {
-      max-width: 760px;
-      margin: 0 auto 5rem;
-      padding: 0 1.5rem;
-    }
-
-    .section-label {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--text-dim);
-      text-align: center;
-      margin-bottom: 2.5rem;
-    }
-
-    .steps-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1.25rem;
-    }
-
-    .step-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.5rem;
-    }
-
-    .step-num {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      background: rgba(0,212,170,.12);
-      border: 1px solid var(--radar);
-      color: var(--radar);
-      font-size: 0.85rem;
-      font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 1rem;
-    }
-
-    .step-card h3 { font-size: 1rem; margin-bottom: 0.4rem; }
-    .step-card p  { font-size: 0.85rem; color: var(--text-dim); }
-
-    /* -- Arch picker ------------------------------------------------------- */
-    .arch-section {
-      max-width: 760px;
-      margin: 0 auto 5rem;
-      padding: 0 1.5rem;
-    }
-
-    .arch-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
-
-    @media (max-width: 480px) {
-      .arch-grid { grid-template-columns: 1fr; }
-    }
-
-    .arch-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.5rem;
-    }
-
-    .arch-card.recommended { border-color: var(--radar); }
-
-    .arch-badge {
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--radar);
-      margin-bottom: 0.6rem;
-    }
-
-    .arch-card h3 { font-size: 1.1rem; margin-bottom: 0.35rem; }
-    .arch-card p  { font-size: 0.83rem; color: var(--text-dim); margin-bottom: 1rem; }
-
-    .devices {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-      margin-bottom: 1rem;
-    }
-
-    .device-tag {
-      font-size: 0.72rem;
-      padding: 0.2rem 0.55rem;
-      border-radius: 999px;
-      background: rgba(255,255,255,.06);
-      color: var(--text-dim);
-    }
-
-    /* -- Footer ------------------------------------------------------------ */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 2rem 1.5rem;
-      text-align: center;
-      font-size: 0.8rem;
-      color: var(--text-dim);
-    }
+    .copy-btn:hover { background: rgba(13,110,253,.05); }
   </style>
 </head>
 <body>
 
-<!-- -- Nav ---------------------------------------------------------------- -->
-<nav>
-  <div class="nav-logo"><img src="data:image/png;base64,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" alt="FlightTracker" style="height:28px;width:auto;vertical-align:middle;margin-right:0.5rem;image-rendering:pixelated;">Flight<span>Tracker</span></div>
-  <div class="nav-links">
-    <a href="https://github.com/ColinWaddell/FlightTracker">GitHub</a>
-    <a href="https://github.com/ColinWaddell/FlightTracker/issues">Support</a>
+<!-- Navbar -->
+<nav class="navbar navbar-expand-md ft-navbar sticky-top mb-0">
+  <div class="container" style="max-width:720px">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+      <img src="images/logo.png" alt="" class="ft-logo-img">
+      <span>FlightTracker</span>
+    </a>
+    <div class="ms-auto d-flex gap-3">
+      <a href="https://github.com/ColinWaddell/FlightTracker" class="nav-link" target="_blank">GitHub</a>
+      <a href="https://github.com/ColinWaddell/FlightTracker/issues" class="nav-link" target="_blank">Support</a>
+    </div>
   </div>
 </nav>
 
-<!-- -- Hero --------------------------------------------------------------- -->
-<section class="hero">
-  <span class="hero-eyebrow">Raspberry Pi Installer</span>
-  <h1>Flash FlightTracker to your Pi <em>in minutes</em></h1>
-  <p>
-    A minimal, headless Raspberry Pi OS image with a built-in web installer.
-    Flash it, boot it, and follow the on-screen steps - no terminal required.
-  </p>
+<div class="container py-4" style="max-width:720px">
 
-  <div class="cta-group">
-    <a href="https://www.raspberrypi.com/software/" target="_blank"
-       class="btn btn-primary">
-      ↓ Download RPi Imager
-    </a>
-    <a href="https://github.com/ColinWaddell/FlightTracker-RPIImage/releases/latest"
-       target="_blank" class="btn btn-secondary">
-      View latest release
-    </a>
+  <!-- Hero -->
+  <div class="text-center py-4 mb-3">
+    <span class="badge bg-primary-subtle text-primary rounded-pill mb-3 px-3 py-2" style="font-size:.75rem;letter-spacing:.05em;">RASPBERRY PI INSTALLER</span>
+    <h1 class="fw-bold mb-3" style="font-size:clamp(1.75rem,4vw,2.75rem);letter-spacing:-.02em;">
+      Flash FlightTracker to your Pi <span class="text-primary">in minutes</span>
+    </h1>
+    <p class="text-muted mx-auto mb-4" style="max-width:32rem;">
+      A minimal, headless Raspberry Pi OS image with a built-in web installer.
+      Flash it, boot it, and follow the on-screen steps — no terminal required.
+    </p>
+
+    <img src="images/flight-tracker.jpg" alt="FlightTracker on Raspberry Pi"
+         class="img-fluid rounded shadow-sm mb-4" style="max-height:280px;">
+
+    <div class="d-flex flex-wrap gap-2 justify-content-center mb-3">
+      <a href="https://www.raspberrypi.com/software/" target="_blank"
+         class="btn btn-primary">
+        <i class="bi bi-download me-1"></i> Download RPi Imager
+      </a>
+      <a href="https://github.com/ColinWaddell/FlightTracker-RPIImage/releases/latest"
+         target="_blank" class="btn btn-outline-secondary">
+        <i class="bi bi-github me-1"></i> View latest release
+      </a>
+    </div>
+
+    <!-- Copy box -->
+    <div class="copy-box mx-auto" style="max-width:34rem;">
+      <code id="repo-url">https://raw.githubusercontent.com/ColinWaddell/FlightTracker-Image/main/os_list.json</code>
+      <button class="copy-btn" onclick="copyUrl()">
+        <i class="bi bi-clipboard"></i> Copy
+      </button>
+    </div>
+    <p class="text-muted mt-2" style="font-size:.78rem;">
+      Paste this URL into RPi Imager → <strong>Choose OS</strong> → <strong>Use custom URL</strong>
+    </p>
   </div>
 
-  <!-- Custom repo URL for RPi Imager -->
-  <div class="copy-box">
-    <code id="repo-url">https://raw.githubusercontent.com/ColinWaddell/FlightTracker-Image/main/os_list.json</code>
-    <button class="copy-btn" onclick="copyUrl()">Copy</button>
-  </div>
-  <p class="copy-hint">
-    Paste this URL into RPi Imager → <strong>Choose OS</strong> → <strong>Use custom URL</strong>
-  </p>
-</section>
+  <!-- How it works -->
+  <div class="mb-5">
+    <div class="section-heading">How it works</div>
+    <div class="row g-3">
 
-<!-- -- How it works -------------------------------------------------------- -->
-<section class="steps-section">
-  <p class="section-label">How it works</p>
-  <div class="steps-grid">
-    <div class="step-card">
-      <div class="step-num">1</div>
-      <h3>Flash the image</h3>
-      <p>Open RPi Imager, paste the URL above, set your Wi-Fi in Advanced Options, then flash to an SD card.</p>
-    </div>
-    <div class="step-card">
-      <div class="step-num">2</div>
-      <h3>Boot your Pi</h3>
-      <p>Insert the card and power on. The Pi connects to your Wi-Fi automatically using the credentials you set.</p>
-    </div>
-    <div class="step-card">
-      <div class="step-num">3</div>
-      <h3>Open the installer</h3>
-      <p>Visit <strong style="color:var(--radar);">http://flighttracker.local/</strong> in your browser. The web installer guides you through the rest.</p>
-    </div>
-    <div class="step-card">
-      <div class="step-num">4</div>
-      <h3>Reboot and enjoy</h3>
-      <p>Hit Reboot when the installer finishes. FlightTracker starts automatically on the LED display.</p>
-    </div>
-  </div>
-</section>
-
-<!-- -- Image picker --------------------------------------------------------- -->
-<section class="arch-section">
-  <p class="section-label">Which image should I choose?</p>
-  <div class="arch-grid">
-
-    <div class="arch-card recommended">
-      <div class="arch-badge">★ Recommended</div>
-      <h3>64-bit (arm64)</h3>
-      <p>Best performance. Use this unless you have a specific reason not to.</p>
-      <div class="devices">
-        <span class="device-tag">Pi Zero 2W</span>
-        <span class="device-tag">Pi 3</span>
-        <span class="device-tag">Pi 4</span>
-        <span class="device-tag">Pi 5</span>
+      <div class="col-md-6 col-lg-3">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center mb-2">
+            <div class="ft-step-dot active">1</div>
+            <span class="fw-semibold small ms-1">Flash the image</span>
+          </div>
+          <p class="text-muted small mb-0">Open RPi Imager, paste the URL above, set your Wi-Fi in Advanced Options, then flash to an SD card.</p>
+        </div>
       </div>
-      <a href="https://github.com/ColinWaddell/FlightTracker-RPIImage/releases/latest/download/flighttracker-os-arm64.img.xz"
-         class="btn btn-primary btn-small">↓ Direct download</a>
-    </div>
 
-    <div class="arch-card">
-      <div class="arch-badge" style="color: var(--text-dim);">Compatibility</div>
-      <h3>32-bit (armhf)</h3>
-      <p>Use if you encounter issues with the 64-bit image or need 32-bit library compatibility.</p>
-      <div class="devices">
-        <span class="device-tag">Pi Zero 2W</span>
-        <span class="device-tag">Pi 3</span>
-        <span class="device-tag">Pi 4</span>
-        <span class="device-tag">Pi 5</span>
+      <div class="col-md-6 col-lg-3">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center mb-2">
+            <div class="ft-step-dot active">2</div>
+            <span class="fw-semibold small ms-1">Boot your Pi</span>
+          </div>
+          <p class="text-muted small mb-0">Insert the card and power on. The Pi connects to your Wi-Fi automatically using the credentials you set.</p>
+        </div>
       </div>
-      <a href="https://github.com/ColinWaddell/FlightTracker-RPIImage/releases/latest/download/flighttracker-os-armhf.img.xz"
-         class="btn btn-secondary btn-small">↓ Direct download</a>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center mb-2">
+            <div class="ft-step-dot active">3</div>
+            <span class="fw-semibold small ms-1">Open the installer</span>
+          </div>
+          <p class="text-muted small mb-0">Visit <strong>http://flighttracker.local/</strong> in your browser. The web installer guides you through the rest.</p>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center mb-2">
+            <div class="ft-step-dot active">4</div>
+            <span class="fw-semibold small ms-1">Reboot and enjoy</span>
+          </div>
+          <p class="text-muted small mb-0">Hit Reboot when the installer finishes. FlightTracker starts automatically on the LED display.</p>
+        </div>
+      </div>
+
     </div>
-
   </div>
-</section>
 
-<!-- -- Footer -------------------------------------------------------------- -->
-<footer>
-  <a href="https://github.com/ColinWaddell/FlightTracker">FlightTracker</a>
-  by Colin Waddell
-  &nbsp;·&nbsp;
-  <a href="https://github.com/ColinWaddell/FlightTracker-RPIImage">FlightTracker-RPIImage</a>
-  &nbsp;·&nbsp;
-  <a href="https://www.raspberrypi.com/software/">Raspberry Pi Imager</a>
+  <!-- Image picker -->
+  <div class="mb-5">
+    <div class="section-heading">Which image should I choose?</div>
+    <div class="row g-3">
+
+      <div class="col-md-6">
+        <div class="card p-4 h-100" style="border:2px solid #0d6efd;">
+          <span class="badge bg-primary mb-2" style="width:fit-content;"><i class="bi bi-star-fill me-1"></i>Recommended</span>
+          <h5 class="fw-bold mb-1">64-bit (arm64)</h5>
+          <p class="text-muted small mb-3">Best performance. Use this unless you have a specific reason not to.</p>
+          <div class="d-flex flex-wrap gap-1 mb-3">
+            <span class="badge bg-light text-secondary border">Pi Zero 2W</span>
+            <span class="badge bg-light text-secondary border">Pi 3</span>
+            <span class="badge bg-light text-secondary border">Pi 4</span>
+            <span class="badge bg-light text-secondary border">Pi 5</span>
+          </div>
+          <a href="https://github.com/ColinWaddell/FlightTracker-RPIImage/releases/latest/download/flighttracker-os-arm64.img.xz"
+             class="btn btn-primary btn-sm" style="width:fit-content;">
+            <i class="bi bi-download me-1"></i> Direct download
+          </a>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card p-4 h-100">
+          <span class="badge bg-secondary mb-2" style="width:fit-content;">Compatibility</span>
+          <h5 class="fw-bold mb-1">32-bit (armhf)</h5>
+          <p class="text-muted small mb-3">Use if you encounter issues with the 64-bit image or need 32-bit library compatibility.</p>
+          <div class="d-flex flex-wrap gap-1 mb-3">
+            <span class="badge bg-light text-secondary border">Pi Zero 2W</span>
+            <span class="badge bg-light text-secondary border">Pi 3</span>
+            <span class="badge bg-light text-secondary border">Pi 4</span>
+            <span class="badge bg-light text-secondary border">Pi 5</span>
+          </div>
+          <a href="https://github.com/ColinWaddell/FlightTracker-RPIImage/releases/latest/download/flighttracker-os-armhf.img.xz"
+             class="btn btn-outline-secondary btn-sm" style="width:fit-content;">
+            <i class="bi bi-download me-1"></i> Direct download
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer class="text-center text-muted py-3" style="font-size: .8rem;">
+  <a href="https://github.com/ColinWaddell/FlightTracker-Image" target="_blank" class="text-muted">Installer Image</a>
+  for the
+  <a href="https://github.com/ColinWaddell/FlightTracker" target="_blank" class="text-muted">FlightTracker</a>
+  By
+  <a href="https://colinwaddell.com" target="_blank" class="text-muted">Colin Waddell</a>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
   function copyUrl() {
     const url = document.getElementById('repo-url').textContent;
     navigator.clipboard.writeText(url).then(() => {
       const btn = document.querySelector('.copy-btn');
-      btn.textContent = 'Copied!';
-      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+      btn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+      setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy'; }, 2000);
     });
   }
 </script>

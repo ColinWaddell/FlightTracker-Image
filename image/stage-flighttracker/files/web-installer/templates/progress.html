@@ -22,6 +22,11 @@
   </span>
 </div>
 
+<div class="alert alert-warning d-flex align-items-center py-2" role="alert" style="font-size:.82rem">
+  <i class="bi bi-exclamation-triangle me-2 flex-shrink-0"></i>
+  <span>Installation in progress on this Pi. Please keep this tab open and avoid opening the installer in other tabs.</span>
+</div>
+
 <div class="ft-terminal" id="terminal">Connecting to installer…</div>
 {% endblock %}
 
@@ -30,7 +35,17 @@
   const terminal = document.getElementById('terminal');
   const statusBadge = document.getElementById('status-badge');
   const statusText = document.getElementById('status-text');
+  let connected = false;
+  let finished = false;
+
   const source = new EventSource('/events');
+
+  source.onopen = function() {
+    if (!connected) {
+      connected = true;
+      terminal.textContent = '';  // Clear "Connecting…" placeholder on first connect
+    }
+  };
 
   source.onmessage = function(e) {
     if (e.data) {
@@ -41,6 +56,7 @@
 
   source.addEventListener('done', function(e) {
     source.close();
+    finished = true;
     const success = e.data === 'success';
 
     if (success) {
@@ -55,7 +71,10 @@
   });
 
   source.onerror = function() {
-    statusText.textContent = 'Reconnecting…';
+    if (!finished) {
+      statusText.textContent = 'Reconnecting…';
+      // EventSource auto-reconnects; server replays buffered history
+    }
   };
 </script>
 {% endblock %}

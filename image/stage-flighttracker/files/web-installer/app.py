@@ -28,6 +28,8 @@ INSTALL_SCRIPT = "/tmp/ft-install.sh"
 # -- Global install state -------------------------------------------------------
 
 _output_queue: queue.Queue = queue.Queue()
+_output_log: list[str] = []
+_output_lock = threading.Lock()
 _install_thread: threading.Thread | None = None
 _install_running = False
 _install_success = False
@@ -57,7 +59,9 @@ def strip_ansi(text: str) -> str:
 
 
 def _emit(line: str) -> None:
-    """Push a line of output to the SSE queue."""
+    """Push a line of output to the log and SSE queue."""
+    with _output_lock:
+        _output_log.append(line)
     _output_queue.put(line)
 
 
@@ -178,6 +182,10 @@ def run_installer(config: dict) -> None:
 @app.route("/")
 def index():
     model = get_pi_model()
+    if _install_running:
+        return redirect(url_for("progress"))
+    if os.path.exists(SENTINEL_FILE):
+        return redirect(url_for("done"))
     return render_template("index.html", model=model)
 
 
@@ -185,6 +193,10 @@ def index():
 def config():
     model = get_pi_model()
     pi5 = is_pi5(model)
+    if _install_running:
+        return redirect(url_for("progress"))
+    if os.path.exists(SENTINEL_FILE):
+        return redirect(url_for("done"))
     return render_template("config.html", model=model, pi5=pi5)
 
 
@@ -202,8 +214,10 @@ def install():
         "quality_mode": request.form.get("quality_mode", "2"),
     }
 
-    # Fresh queue for this run
+    # Fresh queue and log for this run
     _output_queue = queue.Queue()
+    with _output_lock:
+        _output_log.clear()
 
     _install_thread = threading.Thread(target=run_installer, args=(cfg,), daemon=True)
     _install_thread.start()
@@ -214,7 +228,13 @@ def install():
 @app.route("/progress")
 def progress():
     model = get_pi_model()
-    return render_template("progress.html", model=model)
+    if _install_running:
+        return render_template("progress.html", model=model)
+    if not _output_log:
+        # No install has been started — go to the beginning
+        return redirect(url_for("index"))
+    # Install already finished — go to done
+    return redirect(url_for("done"))
 
 
 @app.route("/events")
@@ -222,6 +242,20 @@ def events():
     """Server-Sent Events stream of installer output."""
 
     def generate():
+        # Replay buffered output first so reconnecting clients see full history
+        with _output_lock:
+            replay = list(_output_log)
+        for line in replay:
+            escaped = line.replace("\n", "\ndata: ")
+            yield f"data: {escaped}\n\n"
+
+        # If install already finished, send the done event immediately
+        if not _install_running:
+            status = "success" if _install_success else "error"
+            yield f"event: done\ndata: {status}\n\n"
+            return
+
+        # Live stream new output
         while True:
             try:
                 chunk = _output_queue.get(timeout=30)
@@ -250,9 +284,22 @@ def events():
 @app.route("/done")
 def done():
     model = get_pi_model()
+    if _install_running:
+        return redirect(url_for("progress"))
     return render_template(
         "done.html", model=model, success=_install_success, error=_install_error
     )
+
+
+@app.route("/status")
+def status():
+    """JSON status endpoint for AJAX checks."""
+    return {
+        "running": _install_running,
+        "success": _install_success,
+        "error": _install_error,
+        "installed": os.path.exists(SENTINEL_FILE),
+    }
 
 
 @app.route("/reboot", methods=["POST"])
