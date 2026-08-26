@@ -9,6 +9,7 @@ INSTALLER_DIR="${ROOTFS_DIR}/opt/flighttracker-installer"
 # -- Web installer app ----------------------------------------------------------
 install -d "${INSTALLER_DIR}/templates"
 install -m 644 files/web-installer/app.py          "${INSTALLER_DIR}/app.py"
+install -m 644 files/web-installer/version.py        "${INSTALLER_DIR}/version.py"
 install -m 644 files/web-installer/requirements.txt "${INSTALLER_DIR}/requirements.txt"
 install -m 644 files/web-installer/templates/*.html "${INSTALLER_DIR}/templates/"
 

@@ -13,7 +13,14 @@ from flask import Flask, render_template, request, Response, redirect, url_for
 
 import pexpect
 
+from version import VERSION
+
 app = Flask(__name__)
+
+# -- Version ------------------------------------------------------------------
+
+__version__ = ".".join(str(v) for v in VERSION)
+app.jinja_env.globals["app_version"] = __version__
 
 # -- Constants -----------------------------------------------------------------
 
