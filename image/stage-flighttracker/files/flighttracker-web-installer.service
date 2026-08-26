@@ -7,7 +7,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 /opt/flighttracker-installer/app.py
-WorkingDirectory=/opt/flighttracker-installer
+WorkingDirectory=/root
 Restart=on-failure
 RestartSec=5
 

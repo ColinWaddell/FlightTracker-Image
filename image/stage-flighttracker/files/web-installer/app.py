@@ -99,20 +99,33 @@ def run_installer(config: dict) -> None:
             codec_errors="replace",
         )
 
-        # Expected prompts in order. pexpect.TIMEOUT and pexpect.EOF always last.
-        PROMPTS = [
-            r"Ready to begin installation\?",   # 0
-            r"Select interface board type:",     # 1
-            r"Install realtime clock support\?",  # 2
-            r"What is thy bidding\?",            # 3
-            r"reserve a core",                  # 4 (cpu isolation menu)
-            r"Continue with these settings\?",   # 5
-            r"Reboot now\?",                    # 6
-            r"Would you like to uninstall",       # 7 (existing install)
-            r"Continue anyway\?",               # 8 (non-debian warning)
-            pexpect.EOF,                      # 9
-            pexpect.TIMEOUT,                   # 10
-        ]
+        # Build prompt list based on installer variant.
+        # Pi5 installer prompts: Continue anyway?, Would you like to uninstall?,
+        #   Ready to begin?, Reboot now?
+        # Pi 3/4 installer prompts: Continue anyway?, Would you like to uninstall?,
+        #   Ready to begin?, SELECT 1-N: (interface board), Install RTC?,
+        #   Continue with these settings?, Reboot now?
+        if pi5:
+            PROMPTS = [
+                r"Continue anyway\?",                    # 0
+                r"Would you like to uninstall",            # 1
+                r"Ready to begin installation\?",         # 2
+                r"Reboot now\?",                          # 3
+                pexpect.EOF,                             # 4
+                pexpect.TIMEOUT,                         # 5
+            ]
+        else:
+            PROMPTS = [
+                r"Continue anyway\?",                    # 0
+                r"Would you like to uninstall",            # 1
+                r"Ready to begin installation\?",         # 2
+                r"SELECT 1-\d+:",                        # 3
+                r"Install realtime clock support\?",      # 4
+                r"Continue with these settings\?",       # 5
+                r"Reboot now\?",                          # 6
+                pexpect.EOF,                             # 7
+                pexpect.TIMEOUT,                         # 8
+            ]
 
         while True:
             idx = child.expect(PROMPTS, timeout=300)
@@ -122,47 +135,52 @@ def run_installer(config: dict) -> None:
             if before:
                 _emit(before)
 
-            if idx == 0:  # Ready to begin
-                _emit("» y\n")
-                child.sendline("y")
-
-            elif idx == 1:  # Interface board type (Pi3/4/Zero only)
-                _emit("\n» Selecting interface board…\n")
-                child.sendline(str(config.get("interface_type", "1")))
-
-            elif idx == 2:  # Install RTC?
-                val = "y" if config.get("install_rtc") else "n"
-                _emit(f"» {val}\n")
-                child.sendline(val)
-
-            elif idx == 3:  # Quality vs convenience
-                _emit("\n» Selecting display mode…\n")
-                child.sendline(str(config.get("quality_mode", "2")))
-
-            elif idx == 4:  # CPU isolation menu — answer 0 (no core reserved)
-                _emit("» 0\n")
-                child.sendline("0")
-
-            elif idx == 5:  # Continue with settings
-                _emit("» y\n")
-                child.sendline("y")
-
-            elif idx == 6:  # Reboot now - always decline; we handle it
-                _emit("» n (reboot managed by installer UI)\n")
-                child.sendline("n")
-
-            elif idx == 7 or idx == 8:  # Existing install or non-debian warning
-                _emit("» y\n")
-                child.sendline("y")
-
-            elif idx == 9:  # EOF - installer finished
-                after = strip_ansi(child.after or "")
-                if after and after is not pexpect.EOF:
-                    _emit(after)
-                break
-
-            elif idx == 10:  # Timeout
-                raise RuntimeError("Installation timed out waiting for a response.")
+            if pi5:
+                if idx == 0 or idx == 1:  # Continue anyway? / Would you like to uninstall?
+                    _emit("» y\n")
+                    child.sendline("y")
+                elif idx == 2:  # Ready to begin installation?
+                    _emit("» y\n")
+                    child.sendline("y")
+                elif idx == 3:  # Reboot now? — decline, web UI handles reboot
+                    _emit("» n (reboot managed by installer UI)\n")
+                    child.sendline("n")
+                elif idx == 4:  # EOF — installer finished
+                    if isinstance(child.after, str):
+                        after = strip_ansi(child.after)
+                        if after:
+                            _emit(after)
+                    break
+                elif idx == 5:  # Timeout
+                    raise RuntimeError("Installation timed out waiting for a response.")
+            else:
+                if idx == 0 or idx == 1:  # Continue anyway? / Would you like to uninstall?
+                    _emit("» y\n")
+                    child.sendline("y")
+                elif idx == 2:  # Ready to begin installation?
+                    _emit("» y\n")
+                    child.sendline("y")
+                elif idx == 3:  # SELECT 1-N: (interface board type)
+                    _emit("\n» Selecting interface board…\n")
+                    child.sendline(str(config.get("interface_type", "1")))
+                elif idx == 4:  # Install realtime clock support?
+                    val = "y" if config.get("install_rtc") else "n"
+                    _emit(f"» {val}\n")
+                    child.sendline(val)
+                elif idx == 5:  # Continue with these settings?
+                    _emit("» y\n")
+                    child.sendline("y")
+                elif idx == 6:  # Reboot now? — decline
+                    _emit("» n (reboot managed by installer UI)\n")
+                    child.sendline("n")
+                elif idx == 7:  # EOF — installer finished
+                    if isinstance(child.after, str):
+                        after = strip_ansi(child.after)
+                        if after:
+                            _emit(after)
+                    break
+                elif idx == 8:  # Timeout
+                    raise RuntimeError("Installation timed out waiting for a response.")
 
         child.close()
         if child.exitstatus and child.exitstatus != 0:
