@@ -70,8 +70,8 @@ jobs:
           # Copy our custom stage into pi-gen
           cp -r image/stage-flighttracker pi-gen/stage-flighttracker
           
-          # Ensure 01-run.sh is executable (pi-gen silently skips non-executable scripts)
-          chmod +x pi-gen/stage-flighttracker/01-run.sh pi-gen/stage-flighttracker/prerun.sh
+          # Ensure scripts are executable (pi-gen silently skips non-executable scripts)
+          chmod +x pi-gen/stage-flighttracker/00-flighttracker/01-run.sh pi-gen/stage-flighttracker/prerun.sh
           
           # Create pi-gen config
           {
