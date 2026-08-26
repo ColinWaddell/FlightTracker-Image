@@ -29,6 +29,11 @@ systemctl --root="${ROOTFS_DIR}" enable flighttracker-web-installer.service
 # libnss-mdns wires .local resolution into nsswitch.conf automatically.
 systemctl --root="${ROOTFS_DIR}" enable avahi-daemon.service
 
+# -- MOTD ----------------------------------------------------------------------
+install -m 644 files/motd "${ROOTFS_DIR}/etc/motd"
+# Disable the default dynamic motd scripts that print system info
+chmod -x "${ROOTFS_DIR}/etc/update-motd.d/"* 2>/dev/null || true
+
 # -- Hostname ------------------------------------------------------------------
 echo "flighttracker" > "${ROOTFS_DIR}/etc/hostname"
 sed -i "s/127\.0\.1\.1.*/127.0.1.1\tflighttracker/" "${ROOTFS_DIR}/etc/hosts" || \
