@@ -12,8 +12,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - arch: arm64
-          #   runner: ubuntu-24.04-arm
+          - arch: arm64
+            runner: ubuntu-24.04-arm
           - arch: armhf
             runner: ubuntu-24.04
     runs-on: ${{ matrix.runner }}
@@ -69,7 +69,7 @@ jobs:
           
           # Create pi-gen config
           {
-            echo 'IMG_NAME="flighttracker-os-armhf"'
+            echo 'IMG_NAME="flighttracker-os-${{ matrix.arch }}"'
             echo 'RELEASE="trixie"'
             echo 'LOCALE_DEFAULT="en_GB.UTF-8"'
             echo 'TARGET_HOSTNAME="flighttracker"'
@@ -95,6 +95,6 @@ jobs:
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: flighttracker-os-armhf
-          path: image_*-flighttracker-os-armhf-lite.img.xz
+          name: flighttracker-os-${{ matrix.arch }}
+          path: image_*-flighttracker-os-${{ matrix.arch }}-lite.img.xz
           retention-days: 7
