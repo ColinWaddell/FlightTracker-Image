@@ -22,34 +22,86 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install qemu-user-static for armhf cross-build
+      - name: Setup qemu for armhf cross-build
         if: matrix.arch == 'armhf'
         run: |
+          # Install qemu-user-static (statically linked, F flag) and remove
+          # qemu-user-binfmt (dynamically linked, no F flag) if present
           sudo apt-get update
-          sudo apt-get install -y qemu-user-static
-          sudo ln -sf /usr/bin/qemu-aarch64-static /usr/local/bin/qemu-aarch64
+          sudo apt-get -y install qemu-user-static binfmt-support
+          sudo apt-get -y remove qemu-user-binfmt 2>/dev/null || true
+          
+          # Create symlink so build-docker.sh finds qemu-arm in PATH
+          sudo ln -sf /usr/bin/qemu-arm-static /usr/local/bin/qemu-arm
+          
+          # Mount binfmt_misc and register qemu-arm with F flag
+          sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true
+          echo ':qemu-arm-rpi:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-arm-static:F' | sudo tee /proc/sys/fs/binfmt_misc/register >/dev/null 2>&1 || true
+          
+          # Verify
+          cat /proc/sys/fs/binfmt_misc/qemu-arm-rpi 2>/dev/null || cat /proc/sys/fs/binfmt_misc/qemu-arm 2>/dev/null || echo "WARNING: qemu-arm not registered"
 
-      - name: Build ${{ matrix.arch }} image
-        uses: usimd/pi-gen-action@v1.11.0
-        id: build
-        with:
-          image-name: flighttracker-os-${{ matrix.arch }}
-          stage-list: stage0 stage1 stage2 ./image/stage-flighttracker
-          compression: xz
-          pi-gen-release: ${{ matrix.arch == 'arm64' && 'arm64' || 'armhf' }}
-          release: trixie
-          locale: en_GB.UTF-8
-          hostname: flighttracker
-          keyboard-keymap: gb
-          keyboard-layout: English (UK)
-          timezone: Europe/London
-          enable-ssh: 1
-          enable-cloud-init: 0
-          verbose-output: true
+      - name: Clone pi-gen and build image
+        run: |
+          set -e
+          
+          # Clone pi-gen
+          git clone --depth 1 -b master https://github.com/RPi-Distro/pi-gen.git pi-gen
+          
+          # Fix: Replace stale raspberrypi.gpg keyring (SHA-1 signatures rejected by modern GPG)
+          # See https://github.com/RPi-Distro/pi-gen/issues/862
+          # The key in pi-gen's repo uses SHA-1 signatures which GPG in trixie rejects.
+          # Download updated keyrings from both Raspberry Pi Archive and Raspbian packages.
+          # 1. Raspberry Pi Archive key (archive.raspberrypi.com)
+          curl -sL 'http://archive.raspberrypi.com/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2025.1+rpt1_all.deb' -o /tmp/rpi-keyring.deb
+          dpkg-deb -x /tmp/rpi-keyring.deb /tmp/rpi-keyring
+          # 2. Raspbian key (raspbian.raspberrypi.com) — Mike Thompson's key, also re-signed
+          curl -sL 'http://raspbian.raspberrypi.com/raspbian/pool/main/r/raspbian-archive-keyring/raspbian-archive-keyring_20120528.4_all.deb' -o /tmp/raspbian-keyring.deb
+          dpkg-deb -x /tmp/raspbian-keyring.deb /tmp/raspbian-keyring
+          # Merge both keyrings into one file
+          gpg --no-default-keyring --keyring /tmp/merged.gpg --import /tmp/rpi-keyring/usr/share/keyrings/raspberrypi-archive-keyring.pgp 2>/dev/null
+          gpg --no-default-keyring --keyring /tmp/merged.gpg --import /tmp/raspbian-keyring/usr/share/keyrings/raspbian-archive-keyring.gpg 2>/dev/null
+          gpg --no-default-keyring --keyring /tmp/merged.gpg --export > pi-gen/stage0/files/raspberrypi.gpg
+          rm -rf /tmp/rpi-keyring /tmp/rpi-keyring.deb /tmp/raspbian-keyring /tmp/raspbian-keyring.deb /tmp/merged.gpg*
+          
+          # Copy our custom stage into pi-gen
+          cp -r image/stage-flighttracker pi-gen/stage-flighttracker
+          
+          # Create pi-gen config
+          {
+            echo 'IMG_NAME="flighttracker-os-${{ matrix.arch }}"'
+            echo 'RELEASE="trixie"'
+            echo 'LOCALE_DEFAULT="en_GB.UTF-8"'
+            echo 'TARGET_HOSTNAME="flighttracker"'
+            echo 'KEYBOARD_KEYMAP="gb"'
+            echo 'KEYBOARD_LAYOUT="English (UK)"'
+            echo 'TIMEZONE_DEFAULT="Europe/London"'
+            echo 'FIRST_USER_NAME="pi"'
+            echo 'ENABLE_SSH=1'
+            echo 'STAGE_LIST="stage0 stage1 stage2 stage-flighttracker"'
+            echo 'DEPLOY_COMPRESSION="xz"'
+          } > pi-gen/config
+          
+          # Ensure last stage has EXPORT_IMAGE
+          touch pi-gen/stage-flighttracker/EXPORT_IMAGE
+          
+          # Fix: pi-gen's build-docker.sh picks i386/debian:trixie as base image
+          # on aarch64 runners (assuming cross-build). For native arm64 builds,
+          # override to debian:trixie so Docker pulls the native arm64 image.
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sed -i 's|BASE_IMAGE=i386/debian:trixie|BASE_IMAGE=debian:trixie|' pi-gen/build-docker.sh
+          fi
+          
+          # Build using docker (build-docker.sh passes -c to get config path)
+          cd pi-gen
+          PIGEN_DOCKER_OPTS="" ./build-docker.sh
+          
+          # Copy artifacts
+          cp deploy/*.xz ../
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
           name: flighttracker-os-${{ matrix.arch }}
-          path: ${{ steps.build.outputs.image-path }}
+          path: image_*-flighttracker-os-${{ matrix.arch }}-lite.img.xz
           retention-days: 7

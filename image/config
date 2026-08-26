@@ -3,7 +3,7 @@
 # When building locally, set ARCH=arm64 or ARCH=armhf before running build.sh.
 
 IMG_NAME="flighttracker-os"
-RELEASE=bookworm
+RELEASE=trixie
 DEPLOY_COMPRESSION=xz
 
 LOCALE_DEFAULT="en_GB.UTF-8"
