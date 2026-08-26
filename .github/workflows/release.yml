@@ -180,6 +180,10 @@ jobs:
           BASE_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}"
           RELEASE_DATE=$(date +%Y-%m-%d)
 
+          # Map arch to the device tags used in os_list.json
+          declare -A DEVICES_ARM64='([0]="pi5-64bit" [1]="pi4-64bit" [2]="pi3-64bit" [3]="pi0-2w-64bit")'
+          declare -A DEVICES_ARMHF='([0]="pi5-32bit" [1]="pi4-32bit" [2]="pi3-32bit" [3]="pi2-32bit" [4]="pi0-2w-32bit")'
+
           for arch in arm64 armhf; do
             META=$(cat "artifacts/meta-${arch}/meta-${arch}.json")
             SHA256=$(echo "${META}" | jq -r '.sha256')
@@ -187,7 +191,14 @@ jobs:
             EX_SIZE=$(echo "${META}" | jq -r '.extract_size')
             URL="${BASE_URL}/flighttracker-os-${arch}.img.xz"
 
-            # Update the matching entry in os_list.json by arch field
+            # Build devices JSON array for this arch
+            if [ "$arch" = "arm64" ]; then
+              DEVICES_JSON=$(printf '%s\n' "${DEVICES_ARM64[@]}" | jq -R . | jq -s .)
+            else
+              DEVICES_JSON=$(printf '%s\n' "${DEVICES_ARMHF[@]}" | jq -R . | jq -s .)
+            fi
+
+            # Match entry by URL containing the arch name (stable identifier)
             jq --arg arch "$arch" \
                --arg url "$URL" \
                --arg sha256 "$SHA256" \
@@ -195,12 +206,14 @@ jobs:
                --argjson ex_size "$EX_SIZE" \
                --arg date "$RELEASE_DATE" \
                --arg tag "$TAG" \
-               '(.os_list[] | select(.arch == $arch)) |=
+               --argjson devices "$DEVICES_JSON" \
+               '(.os_list[] | select(.url | test("flighttracker-os-" + $arch + "\\.img\\.xz"))) |=
                  . + {url: $url, extract_sha256: $sha256,
                       image_download_size: $dl_size,
                       extract_size: $ex_size,
                       release_date: $date,
-                      version: $tag}' \
+                      version: $tag,
+                      devices: $devices}' \
                os_list.json > os_list.json.tmp
             mv os_list.json.tmp os_list.json
           done
