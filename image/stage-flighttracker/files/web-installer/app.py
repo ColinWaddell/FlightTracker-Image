@@ -5,13 +5,10 @@ Runs on the Pi on first boot. Accessible at http://flighttracker.local/
 """
 
 import os
-import json
 import queue
 import threading
 import subprocess
 import re
-import signal
-import sys
 from flask import Flask, render_template, request, Response, redirect, url_for
 
 import pexpect
@@ -97,17 +94,17 @@ def run_installer(config: dict) -> None:
 
         # Expected prompts in order. pexpect.TIMEOUT and pexpect.EOF always last.
         PROMPTS = [
-            r"Ready to begin installation\?",  # 0
-            r"Select interface board type:",  # 1
+            r"Ready to begin installation\?",   # 0
+            r"Select interface board type:",     # 1
             r"Install realtime clock support\?",  # 2
-            r"What is thy bidding\?",  # 3
-            r"reserve a core",  # 4 (cpu isolation menu)
-            r"Continue with these settings\?",  # 4
-            r"Reboot now\?",  # 5
-            r"Would you like to uninstall",  # 6 (existing install)
-            r"Continue anyway\?",  # 7 (non-debian warning)
-            pexpect.EOF,  # 8
-            pexpect.TIMEOUT,  # 9
+            r"What is thy bidding\?",            # 3
+            r"reserve a core",                  # 4 (cpu isolation menu)
+            r"Continue with these settings\?",   # 5
+            r"Reboot now\?",                    # 6
+            r"Would you like to uninstall",       # 7 (existing install)
+            r"Continue anyway\?",               # 8 (non-debian warning)
+            pexpect.EOF,                      # 9
+            pexpect.TIMEOUT,                   # 10
         ]
 
         while True:
@@ -135,27 +132,29 @@ def run_installer(config: dict) -> None:
                 _emit("\n» Selecting display mode…\n")
                 child.sendline(str(config.get("quality_mode", "2")))
 
-            elif idx == 4:  # Continue with settings
+            elif idx == 4:  # CPU isolation menu — answer 0 (no core reserved)
+                _emit("» 0\n")
+                child.sendline("0")
+
+            elif idx == 5:  # Continue with settings
                 _emit("» y\n")
                 child.sendline("y")
 
-            elif idx == 5:  # Reboot now - always decline; we handle it
+            elif idx == 6:  # Reboot now - always decline; we handle it
                 _emit("» n (reboot managed by installer UI)\n")
                 child.sendline("n")
 
-            elif (
-                idx == 6 or idx == 7
-            ):  # Existing install or Non-debian warning - uninstall it
+            elif idx == 7 or idx == 8:  # Existing install or non-debian warning
                 _emit("» y\n")
                 child.sendline("y")
 
-            elif idx == 8:  # EOF - installer finished
+            elif idx == 9:  # EOF - installer finished
                 after = strip_ansi(child.after or "")
                 if after and after is not pexpect.EOF:
                     _emit(after)
                 break
 
-            elif idx == 9:  # Timeout
+            elif idx == 10:  # Timeout
                 raise RuntimeError("Installation timed out waiting for a response.")
 
         child.close()
@@ -245,6 +244,7 @@ def events():
         # Replay buffered output first so reconnecting clients see full history
         with _output_lock:
             replay = list(_output_log)
+            log_pos = len(_output_log)
         for line in replay:
             escaped = line.replace("\n", "\ndata: ")
             yield f"data: {escaped}\n\n"
@@ -255,24 +255,29 @@ def events():
             yield f"event: done\ndata: {status}\n\n"
             return
 
-        # Live stream new output
+        # Live stream: use queue as a wake signal, then read new log entries
         while True:
             try:
-                chunk = _output_queue.get(timeout=30)
+                _output_queue.get(timeout=30)
             except queue.Empty:
                 # Keep-alive comment
                 yield ": keep-alive\n\n"
                 continue
 
-            if chunk is None:
-                # Install finished
+            # The queue item was a signal — read any new lines from the log
+            with _output_lock:
+                new_lines = _output_log[log_pos:]
+                log_pos = len(_output_log)
+
+            for line in new_lines:
+                escaped = line.replace("\n", "\ndata: ")
+                yield f"data: {escaped}\n\n"
+
+            # Check if install finished (None sentinel was emitted)
+            if not _install_running:
                 status = "success" if _install_success else "error"
                 yield f"event: done\ndata: {status}\n\n"
                 break
-
-            # Escape newlines for SSE data field
-            escaped = chunk.replace("\n", "\ndata: ")
-            yield f"data: {escaped}\n\n"
 
     return Response(
         generate(),
