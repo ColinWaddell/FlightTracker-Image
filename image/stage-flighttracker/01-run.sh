@@ -34,6 +34,20 @@ install -m 644 files/motd "${ROOTFS_DIR}/etc/motd"
 # Disable the default dynamic motd scripts that print system info
 chmod -x "${ROOTFS_DIR}/etc/update-motd.d/"* 2>/dev/null || true
 
+# -- Boot splash ---------------------------------------------------------------
+# Firmware splash image shown on HDMI if someone plugs in a monitor
+install -m 644 files/splash.bmp "${ROOTFS_DIR}/boot/firmware/splash.bmp" 2>/dev/null || \
+    install -m 644 files/splash.bmp "${ROOTFS_DIR}/boot/splash.bmp"
+
+# Suppress the default boot text/rainbow and enable our splash image
+for cfg in "${ROOTFS_DIR}/boot/firmware/config.txt" "${ROOTFS_DIR}/boot/config.txt"; do
+  if [ -f "$cfg" ]; then
+    grep -q "^disable_splash=" "$cfg" || echo "disable_splash=1" >> "$cfg"
+    grep -q "^boot_delay=" "$cfg" || echo "boot_delay=0" >> "$cfg"
+    break
+  fi
+done
+
 # -- Hostname ------------------------------------------------------------------
 echo "flighttracker" > "${ROOTFS_DIR}/etc/hostname"
 sed -i "s/127\.0\.1\.1.*/127.0.1.1\tflighttracker/" "${ROOTFS_DIR}/etc/hosts" || \
