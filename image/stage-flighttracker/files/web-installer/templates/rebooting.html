@@ -5,10 +5,56 @@
 {% block content %}
 <div class="text-center py-5">
   <div class="spinner-ring mb-4"></div>
-  <h4 class="fw-bold mb-2">Rebooting…</h4>
-  <p class="text-muted">
-    Your Pi is restarting. FlightTracker will start on the display automatically once the reboot is complete.<br>
-    You can close this tab.
+  <h4 class="fw-bold mb-2" id="status-title">Rebooting…</h4>
+  <p class="text-muted mb-1" id="status-text">
+    Your Pi is restarting. FlightTracker will start automatically.
   </p>
+  <p class="text-muted small" id="elapsed"></p>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const start = Date.now();
+  const elapsed = document.getElementById("elapsed");
+  const statusTitle = document.getElementById("status-title");
+  const statusText = document.getElementById("status-text");
+
+  let pollCount = 0;
+  const MAX_POLLS = 120;  // ~3 min at 1.5s intervals
+
+  function poll() {
+    const secs = Math.round((Date.now() - start) / 1000);
+    elapsed.textContent = `${secs}s elapsed`;
+    pollCount++;
+
+    if (pollCount > MAX_POLLS) {
+      statusTitle.textContent = "Taking longer than expected…";
+      statusText.textContent = "FlightTracker may still be starting up. Keep waiting or refresh manually.";
+    }
+
+    fetch("/ping", { cache: "no-store" })
+      .then(r => {
+        if (r.ok) {
+          statusTitle.textContent = "FlightTracker is live!";
+          statusText.textContent = "Redirecting to the web interface…";
+          elapsed.textContent = "";
+          window.location.href = "/";
+        } else {
+          // 503 or other — service is starting but not ready yet
+          statusTitle.textContent = "Waiting for FlightTracker to start…";
+          setTimeout(poll, 1500);
+        }
+      })
+      .catch(() => {
+        // Network error — Pi is still rebooting, nothing listening yet
+        statusTitle.textContent = "Rebooting…";
+        statusText.textContent = "Your Pi is restarting. FlightTracker will start automatically.";
+        setTimeout(poll, 1500);
+      });
+  }
+
+  // Give the Pi a moment to actually go down before we start polling
+  setTimeout(poll, 3000);
+</script>
 {% endblock %}
