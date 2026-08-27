@@ -132,7 +132,7 @@ def run_installer(config: dict) -> None:
                 _emit("\n» Selecting display mode…\n")
                 child.sendline(str(config.get("quality_mode", "2")))
 
-            elif idx == 4:  # CPU isolation menu — answer 0 (no core reserved)
+            elif idx == 4:  # CPU isolation menu - answer 0 (no core reserved)
                 _emit("» 0\n")
                 child.sendline("0")
 
@@ -230,9 +230,9 @@ def progress():
     if _install_running:
         return render_template("progress.html", model=model)
     if not _output_log:
-        # No install has been started — go to the beginning
+        # No install has been started - go to the beginning
         return redirect(url_for("index"))
-    # Install already finished — go to done
+    # Install already finished - go to done
     return redirect(url_for("done"))
 
 
@@ -264,7 +264,7 @@ def events():
                 yield ": keep-alive\n\n"
                 continue
 
-            # The queue item was a signal — read any new lines from the log
+            # The queue item was a signal - read any new lines from the log
             with _output_lock:
                 new_lines = _output_log[log_pos:]
                 log_pos = len(_output_log)

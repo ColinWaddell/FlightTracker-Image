@@ -55,7 +55,7 @@ jobs:
           # 1. Raspberry Pi Archive key (archive.raspberrypi.com)
           curl -sL 'http://archive.raspberrypi.com/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2025.1+rpt1_all.deb' -o /tmp/rpi-keyring.deb
           dpkg-deb -x /tmp/rpi-keyring.deb /tmp/rpi-keyring
-          # 2. Raspbian key (raspbian.raspberrypi.com) — Mike Thompson's key, also re-signed
+          # 2. Raspbian key (raspbian.raspberrypi.com) - Mike Thompson's key, also re-signed
           curl -sL 'http://raspbian.raspberrypi.com/raspbian/pool/main/r/raspbian-archive-keyring/raspbian-archive-keyring_20120528.4_all.deb' -o /tmp/raspbian-keyring.deb
           dpkg-deb -x /tmp/raspbian-keyring.deb /tmp/raspbian-keyring
           # Merge both keyrings into one file
