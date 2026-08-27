@@ -210,9 +210,17 @@ jobs:
               DEVICES_JSON=$(printf '%s\n' "${DEVICES_ARMHF[@]}" | jq -R . | jq -s .)
             fi
 
+            # Set display name with version number for this arch
+            if [ "$arch" = "arm64" ]; then
+              DISPLAY_NAME="FlightTracker OS ${TAG} (64-bit)"
+            else
+              DISPLAY_NAME="FlightTracker OS ${TAG} (32-bit)"
+            fi
+
             # Match entry by URL containing the arch name (stable identifier)
             jq --arg arch "$arch" \
                --arg url "$URL" \
+               --arg name "$DISPLAY_NAME" \
                --arg sha256 "$SHA256" \
                --arg dl_sha256 "$DL_SHA256" \
                --argjson dl_size "$DL_SIZE" \
@@ -221,7 +229,7 @@ jobs:
                --arg tag "$TAG" \
                --argjson devices "$DEVICES_JSON" \
                '(.os_list[] | select(.url | test("flighttracker-os-" + $arch + "\\.img\\.xz"))) |=
-                 . + {url: $url, extract_sha256: $sha256,
+                 . + {name: $name, url: $url, extract_sha256: $sha256,
                       image_download_sha256: $dl_sha256,
                       image_download_size: $dl_size,
                       extract_size: $ex_size,

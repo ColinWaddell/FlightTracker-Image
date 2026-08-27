@@ -1,7 +1,7 @@
 {
   "os_list": [
     {
-      "name": "FlightTracker OS (64-bit)",
+      "name": "FlightTracker OS v1.0.6 (64-bit)",
       "description": "Minimal Raspberry Pi OS with the FlightTracker web installer pre-loaded. Recommended for Pi Zero 2W, Pi 3, Pi 4, and Pi 5.",
       "icon": "https://raw.githubusercontent.com/ColinWaddell/FlightTracker/main/web/static/images/logo.png",
       "url": "https://github.com/ColinWaddell/FlightTracker-Image/releases/download/v1.0.8/flighttracker-os-arm64.img.xz",
@@ -20,7 +20,7 @@
       ]
     },
     {
-      "name": "FlightTracker OS (32-bit)",
+      "name": "FlightTracker OS v1.0.6 (32-bit)",
       "description": "32-bit build for maximum compatibility. Use if you hit issues with the 64-bit image. Supports Pi Zero 2W, Pi 3, Pi 4, and Pi 5.",
       "icon": "https://raw.githubusercontent.com/ColinWaddell/FlightTracker/main/web/static/images/logo.png",
       "url": "https://github.com/ColinWaddell/FlightTracker-Image/releases/download/v1.0.8/flighttracker-os-armhf.img.xz",
