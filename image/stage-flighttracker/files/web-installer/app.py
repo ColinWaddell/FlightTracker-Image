@@ -351,7 +351,7 @@ def reboot():
         import time
 
         time.sleep(1)
-        subprocess.run(["reboot"])
+        subprocess.run(["sudo", "reboot"])
 
     threading.Thread(target=_reboot, daemon=True).start()
     return render_template("rebooting.html")
