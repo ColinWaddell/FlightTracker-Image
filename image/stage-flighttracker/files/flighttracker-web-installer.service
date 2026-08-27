@@ -9,12 +9,13 @@ ConditionPathExists=!/opt/flighttracker-installer/.installed
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 /opt/flighttracker-installer/app.py
-WorkingDirectory=/root
+WorkingDirectory=/home/pi
 Restart=on-failure
 RestartSec=5
 
-# Run as root so the installer can call apt-get, pip, systemctl etc.
-User=root
+# Run as the pi user — same user the FlightTracker service runs as.
+# Port 8584 doesn't need root privileges.
+User=pi
 
 StandardOutput=journal
 StandardError=journal

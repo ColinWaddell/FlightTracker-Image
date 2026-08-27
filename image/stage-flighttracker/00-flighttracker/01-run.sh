@@ -49,9 +49,10 @@ for cfg in "${ROOTFS_DIR}/boot/firmware/config.txt" "${ROOTFS_DIR}/boot/config.t
 done
 
 # -- Passwordless sudo for pi user --------------------------------------------
-# The web installer runs the install script as root, but if we later switch
-# to running as pi, pi needs passwordless sudo for the install script's
-# sudo calls (apt-get, systemctl, etc.).
+# The web installer runs as pi and spawns the install script as pi.
+# The install script uses sudo internally (apt-get, systemctl, etc.),
+# so pi needs passwordless sudo. Also set via PASSWORDLESS_SUDO=1 in
+# pi-gen config, but this sudoers file is belt-and-braces.
 install -d "${ROOTFS_DIR}/etc/sudoers.d"
 echo "pi ALL=(ALL) NOPASSWD: ALL" > "${ROOTFS_DIR}/etc/sudoers.d/010_pi-nopasswd"
 chmod 440 "${ROOTFS_DIR}/etc/sudoers.d/010_pi-nopasswd"

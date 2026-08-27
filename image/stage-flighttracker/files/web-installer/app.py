@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 FlightTracker Web Installer
-Runs on the Pi on first boot. Accessible at http://flighttracker.local/
+Runs on the Pi on first boot. Accessible at http://flighttracker.local:8584/
+After installation completes and the Pi reboots, the FlightTracker web
+interface takes over the same port (8584).
 """
 
 import os
@@ -91,13 +93,12 @@ def run_installer(config: dict) -> None:
         _emit("Download complete.\n\n")
 
         # -- Spawn the installer via pexpect -----------------------------------
-        # Run as the 'pi' user so the install script detects the correct
-        # user/home and generates service paths for pi, not root.
-        # pi has passwordless sudo (configured in the image) so the install
-        # script's sudo calls work without a password prompt.
+        # The web installer service runs as the 'pi' user, so the install
+        # script detects CURRENT_USER=pi and CURRENT_HOME=/home/pi,
+        # producing correct service file paths.
         child = pexpect.spawn(
-            "sudo",
-            ["-u", "pi", "bash", INSTALL_SCRIPT],
+            "bash",
+            [INSTALL_SCRIPT],
             timeout=600,
             encoding="utf-8",
             codec_errors="replace",
@@ -353,5 +354,7 @@ def reboot():
 # -- Entry point ---------------------------------------------------------------
 
 if __name__ == "__main__":
-    # Port 80 requires root; the systemd unit runs as root.
-    app.run(host="0.0.0.0", port=80, threaded=True, debug=False)
+    # Port 8584 — same port the FlightTracker web interface uses after install.
+    # This way the operator bookmarks one URL and after reboot they see the
+    # FlightTracker interface instead of the installer.
+    app.run(host="0.0.0.0", port=8584, threaded=True, debug=False)
