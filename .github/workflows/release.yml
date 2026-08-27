@@ -168,10 +168,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout main (not the tag, so os_list.json push is fast-forward)
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -240,13 +241,15 @@ jobs:
             mv os_list.json.tmp os_list.json
           done
 
-      - name: Commit updated os_list.json
+      - name: Commit and push updated os_list.json
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add os_list.json
           git commit -m "release: update os_list.json for ${{ github.ref_name }}" || true
-          git push origin HEAD:main
+          # Rebase on latest main in case commits landed during the build
+          git pull --rebase origin main || true
+          git push origin main
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
