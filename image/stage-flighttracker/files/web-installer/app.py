@@ -96,12 +96,18 @@ def run_installer(config: dict) -> None:
         # The web installer service runs as the configured FT user, so the
         # install script detects the correct CURRENT_USER and CURRENT_HOME,
         # producing correct service file paths.
+        # Set FT_VERBOSE=1 so run_quiet() streams command output (apt, git,
+        # pip, make) to stdout instead of capturing to a temp file.
         child = pexpect.spawn(
             "bash",
             [INSTALL_SCRIPT],
             timeout=600,
             encoding="utf-8",
             codec_errors="replace",
+            env={
+                **os.environ,
+                "FT_VERBOSE": "1",
+            },
         )
 
         # Build prompt list based on installer variant.

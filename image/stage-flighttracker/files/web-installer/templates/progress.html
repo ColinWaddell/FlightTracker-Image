@@ -62,12 +62,17 @@
     if (success) {
       statusBadge.className = 'badge bg-success-subtle text-success-emphasis border border-success-subtle px-3 py-2';
       statusBadge.innerHTML = '<i class="bi bi-check-circle me-1"></i><span>Installation complete</span>';
+      setTimeout(() => { window.location.href = '/done'; }, 1500);
     } else {
       statusBadge.className = 'badge bg-danger-subtle text-danger-emphasis border border-danger-subtle px-3 py-2';
       statusBadge.innerHTML = '<i class="bi bi-x-circle me-1"></i><span>Installation failed</span>';
+      // Keep the terminal visible for debugging. Show a link to /done
+      // instead of auto-redirecting so the user can inspect the output.
+      const doneLink = document.createElement('div');
+      doneLink.className = 'mt-3 text-center';
+      doneLink.innerHTML = '<a href="/done" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-right me-1"></i> Continue</a>';
+      terminal.parentElement.insertBefore(doneLink, terminal.nextSibling);
     }
-
-    setTimeout(() => { window.location.href = '/done'; }, 1500);
   });
 
   source.onerror = function() {
