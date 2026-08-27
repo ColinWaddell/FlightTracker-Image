@@ -1,43 +1,43 @@
 {
-    "os_list": [
-        {
-            "name": "FlightTracker OS (64-bit)",
-            "description": "Minimal Raspberry Pi OS with the FlightTracker web installer pre-loaded. Recommended for Pi Zero 2W, Pi 3, Pi 4, and Pi 5.",
-            "icon": "https://raw.githubusercontent.com/ColinWaddell/FlightTracker/main/web/static/images/logo.png",
-            "arch": "arm64",
-            "devices": [
-                "pi5",
-                "pi4-64bit",
-                "pi3-64bit",
-                "pi0-2w-64bit"
-            ],
-            "url": "",
-            "extract_sha256": "",
-            "image_download_size": 0,
-            "extract_size": 0,
-            "release_date": "",
-            "version": "",
-            "init_format": "cloudinit-rpi"
-        },
-        {
-            "name": "FlightTracker OS (32-bit)",
-            "description": "32-bit build for maximum compatibility. Use if you hit issues with the 64-bit image. Supports Pi Zero 2W, Pi 3, Pi 4, and Pi 5.",
-            "icon": "https://raw.githubusercontent.com/ColinWaddell/FlightTracker/main/web/static/images/logo.png",
-            "arch": "armhf",
-            "devices": [
-                "pi5",
-                "pi4",
-                "pi3",
-                "pi2",
-                "pi0-2w"
-            ],
-            "url": "",
-            "extract_sha256": "",
-            "image_download_size": 0,
-            "extract_size": 0,
-            "release_date": "",
-            "version": "",
-            "init_format": "cloudinit-rpi"
-        }
-    ]
+  "os_list": [
+    {
+      "name": "FlightTracker OS v1.1.1 (64-bit)",
+      "description": "Minimal Raspberry Pi OS with the FlightTracker web installer pre-loaded. Recommended for Pi Zero 2W, Pi 3, Pi 4, and Pi 5.",
+      "icon": "https://raw.githubusercontent.com/ColinWaddell/FlightTracker/main/web/static/images/logo.png",
+      "url": "https://github.com/ColinWaddell/FlightTracker-Image/releases/download/v1.1.1/flighttracker-os-arm64.img.xz",
+      "extract_sha256": "b19fbb332a098701761fc2736a6d5addfea0f21791a5e0eb53cadeb9fa49d939",
+      "image_download_sha256": "c58d1d250f15bd610e9b6d0389543fc27f13ee47c13127a1c4ad392cb5a59f17",
+      "image_download_size": 626185700,
+      "extract_size": 2768240640,
+      "release_date": "2026-08-27",
+      "version": "v1.1.1",
+      "init_format": "cloudinit-rpi",
+      "devices": [
+        "pi0-2w-64bit",
+        "pi3-64bit",
+        "pi4-64bit",
+        "pi5-64bit"
+      ]
+    },
+    {
+      "name": "FlightTracker OS v1.1.1 (32-bit)",
+      "description": "32-bit build for maximum compatibility. Use if you hit issues with the 64-bit image. Supports Pi Zero 2W, Pi 3, Pi 4, and Pi 5.",
+      "icon": "https://raw.githubusercontent.com/ColinWaddell/FlightTracker/main/web/static/images/logo.png",
+      "url": "https://github.com/ColinWaddell/FlightTracker-Image/releases/download/v1.1.1/flighttracker-os-armhf.img.xz",
+      "extract_sha256": "ebeb9bd055c37085701e834b677bb3468a3c5181ad94d68a9d0ecb786c255f22",
+      "image_download_sha256": "bcbf7dfcf1f19230a299aa3e8839bdd03e92d98fd0ea9687488953c61c95f7c2",
+      "image_download_size": 606077072,
+      "extract_size": 2759852032,
+      "release_date": "2026-08-27",
+      "version": "v1.1.1",
+      "init_format": "cloudinit-rpi",
+      "devices": [
+        "pi0-2w-32bit",
+        "pi2-32bit",
+        "pi3-32bit",
+        "pi4-32bit",
+        "pi5-32bit"
+      ]
+    }
+  ]
 }

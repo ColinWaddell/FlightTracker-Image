@@ -87,7 +87,7 @@
       font-size: 0.8rem;
       color: #adb5bd;
       min-height: 320px;
-      max-height: 480px;
+      max-height: 70vh;
       overflow-y: auto;
       white-space: pre-wrap;
       word-break: break-all;
@@ -124,6 +124,7 @@
     {% if model is defined %}
     <span class="badge bg-light text-secondary border ms-auto fw-normal" style="font-family: monospace; font-size: .75rem;">{{ model }}</span>
     {% endif %}
+    <span class="badge bg-light text-secondary border ms-2 fw-normal" style="font-size: .75rem;">v{{ app_version }}</span>
   </div>
 </nav>
 
@@ -132,7 +133,7 @@
 </div>
 
 <footer class="text-center text-muted py-3" style="font-size: .8rem;">
-
+  <span class="text-muted me-2">v{{ app_version }}</span>
   <a href="https://github.com/ColinWaddell/FlightTracker-Image" target="_blank" class="text-muted">Installer Image</a> for the 
   <a href="https://github.com/ColinWaddell/FlightTracker" target="_blank" class="text-muted">FlightTracker</a> By
   <a href="https://colinwaddell.com" target="_blank" class="text-muted">Colin Waddell</a>

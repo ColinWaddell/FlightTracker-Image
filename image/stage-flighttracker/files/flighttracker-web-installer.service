@@ -3,19 +3,21 @@ Description=FlightTracker Web Installer
 Documentation=https://github.com/ColinWaddell/FlightTracker
 After=network-online.target avahi-daemon.service
 Wants=network-online.target
+# Disable after a successful install (the app writes this sentinel file)
+ConditionPathExists=!/opt/flighttracker-installer/.installed
 
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 /opt/flighttracker-installer/app.py
-WorkingDirectory=/opt/flighttracker-installer
+WorkingDirectory=/home/pi
 Restart=on-failure
 RestartSec=5
 
-# Run as root so the installer can call apt-get, pip, systemctl etc.
-User=root
-
-# Disable after a successful install (the app writes this sentinel file)
-ConditionPathExists=!/opt/flighttracker-installer/.installed
+# Run as the pi user — same user the FlightTracker service runs as.
+# Port 8584 doesn't need root privileges.
+# The build stage patches User= and WorkingDirectory= with the actual
+# username configured via FIRST_USER_NAME in pi-gen.
+User=pi
 
 StandardOutput=journal
 StandardError=journal

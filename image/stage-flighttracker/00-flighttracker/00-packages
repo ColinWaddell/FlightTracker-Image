@@ -3,3 +3,4 @@ python3-pexpect
 avahi-daemon
 libnss-mdns
 curl
+unattended-upgrades

@@ -20,44 +20,96 @@ jobs:
           - arch: armhf
             runner: ubuntu-24.04
     runs-on: ${{ matrix.runner }}
-    outputs:
-      # Passed to the release job via artifacts
-      image-name-arm64: flighttracker-os-arm64.img.xz
-      image-name-armhf: flighttracker-os-armhf.img.xz
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install qemu-user-static for armhf cross-build
+      - name: Setup qemu for armhf cross-build
         if: matrix.arch == 'armhf'
         run: |
+          # Install qemu-user-static (statically linked, F flag) and remove
+          # qemu-user-binfmt (dynamically linked, no F flag) if present
           sudo apt-get update
-          sudo apt-get install -y qemu-user-static
-          sudo ln -sf /usr/bin/qemu-aarch64-static /usr/local/bin/qemu-aarch64
+          sudo apt-get -y install qemu-user-static binfmt-support
+          sudo apt-get -y remove qemu-user-binfmt 2>/dev/null || true
+          
+          # Create symlink so build-docker.sh finds qemu-arm in PATH
+          sudo ln -sf /usr/bin/qemu-arm-static /usr/local/bin/qemu-arm
+          
+          # Mount binfmt_misc and register qemu-arm with F flag
+          sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true
+          echo ':qemu-arm-rpi:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-arm-static:F' | sudo tee /proc/sys/fs/binfmt_misc/register >/dev/null 2>&1 || true
+          
+          # Verify
+          cat /proc/sys/fs/binfmt_misc/qemu-arm-rpi 2>/dev/null || cat /proc/sys/fs/binfmt_misc/qemu-arm 2>/dev/null || echo "WARNING: qemu-arm not registered"
 
-      - name: Build ${{ matrix.arch }} image
-        uses: usimd/pi-gen-action@v1.11.0
-        id: build
-        with:
-          image-name: flighttracker-os-${{ matrix.arch }}
-          stage-list: stage0 stage1 stage2 ./image/stage-flighttracker
-          compression: xz
-          pi-gen-release: ${{ matrix.arch == 'arm64' && 'arm64' || 'armhf' }}
-          release: trixie
-          locale: en_GB.UTF-8
-          hostname: flighttracker
-          keyboard-keymap: gb
-          keyboard-layout: English (UK)
-          timezone: Europe/London
-          enable-ssh: 1
-          enable-cloud-init: 0
-          verbose-output: true
+      - name: Clone pi-gen and build image
+        run: |
+          set -e
+          
+          # Clone pi-gen
+          git clone --depth 1 -b master https://github.com/RPi-Distro/pi-gen.git pi-gen
+          
+          # Fix: Replace stale raspberrypi.gpg keyring (SHA-1 signatures rejected by modern GPG)
+          # See https://github.com/RPi-Distro/pi-gen/issues/862
+          # The key in pi-gen's repo uses SHA-1 signatures which GPG in trixie rejects.
+          # Download updated keyrings from both Raspberry Pi Archive and Raspbian packages.
+          # 1. Raspberry Pi Archive key (archive.raspberrypi.com)
+          curl -sL 'http://archive.raspberrypi.com/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2025.1+rpt1_all.deb' -o /tmp/rpi-keyring.deb
+          dpkg-deb -x /tmp/rpi-keyring.deb /tmp/rpi-keyring
+          # 2. Raspbian key (raspbian.raspberrypi.com) — Mike Thompson's key, also re-signed
+          curl -sL 'http://raspbian.raspberrypi.com/raspbian/pool/main/r/raspbian-archive-keyring/raspbian-archive-keyring_20120528.4_all.deb' -o /tmp/raspbian-keyring.deb
+          dpkg-deb -x /tmp/raspbian-keyring.deb /tmp/raspbian-keyring
+          # Merge both keyrings into one file
+          gpg --no-default-keyring --keyring /tmp/merged.gpg --import /tmp/rpi-keyring/usr/share/keyrings/raspberrypi-archive-keyring.pgp 2>/dev/null
+          gpg --no-default-keyring --keyring /tmp/merged.gpg --import /tmp/raspbian-keyring/usr/share/keyrings/raspbian-archive-keyring.gpg 2>/dev/null
+          gpg --no-default-keyring --keyring /tmp/merged.gpg --export > pi-gen/stage0/files/raspberrypi.gpg
+          rm -rf /tmp/rpi-keyring /tmp/rpi-keyring.deb /tmp/raspbian-keyring /tmp/raspbian-keyring.deb /tmp/merged.gpg*
+          
+          # Copy our custom stage into pi-gen
+          cp -r image/stage-flighttracker pi-gen/stage-flighttracker
+          
+          # Ensure scripts are executable (pi-gen silently skips non-executable scripts)
+          chmod +x pi-gen/stage-flighttracker/00-flighttracker/01-run.sh pi-gen/stage-flighttracker/prerun.sh
+          
+          # Create pi-gen config
+          {
+            echo 'IMG_NAME="flighttracker-os-${{ matrix.arch }}"'
+            echo 'RELEASE="trixie"'
+            echo 'LOCALE_DEFAULT="en_GB.UTF-8"'
+            echo 'TARGET_HOSTNAME="flighttracker"'
+            echo 'KEYBOARD_KEYMAP="gb"'
+            echo 'KEYBOARD_LAYOUT="English (UK)"'
+            echo 'TIMEZONE_DEFAULT="Europe/London"'
+            echo 'FIRST_USER_NAME="pi"'
+            echo 'PASSWORDLESS_SUDO=1'
+            echo 'ENABLE_SSH=1'
+            echo 'STAGE_LIST="stage0 stage1 stage2 stage-flighttracker"'
+            echo 'DEPLOY_COMPRESSION="xz"'
+          } > pi-gen/config
+          
+          # Ensure last stage has EXPORT_IMAGE
+          touch pi-gen/stage-flighttracker/EXPORT_IMAGE
+          
+          # Fix: pi-gen's build-docker.sh picks i386/debian:trixie as base image
+          # on aarch64 runners (assuming cross-build). For native arm64 builds,
+          # override to debian:trixie so Docker pulls the native arm64 image.
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sed -i 's|BASE_IMAGE=i386/debian:trixie|BASE_IMAGE=debian:trixie|' pi-gen/build-docker.sh
+          fi
+          
+          # Build using docker (build-docker.sh passes -c to get config path)
+          cd pi-gen
+          PIGEN_DOCKER_OPTS="" ./build-docker.sh
+          
+          # Copy artifacts to workspace root
+          cp deploy/*.xz ../
 
       - name: Locate built image
         id: locate
         run: |
-          IMG=$(find "${{ steps.build.outputs.image-path }}" -name "*.img.xz" | head -1)
+          IMG=$(find . -maxdepth 1 -name "image_*-flighttracker-os-${{ matrix.arch }}-lite.img.xz" | head -1)
           echo "path=${IMG}" >> "$GITHUB_OUTPUT"
           echo "filename=$(basename ${IMG})" >> "$GITHUB_OUTPUT"
 
@@ -65,33 +117,39 @@ jobs:
         id: checksum
         run: |
           IMG="${{ steps.locate.outputs.path }}"
-          SHA256=$(sha256sum "${IMG}" | awk '{print $1}')
-          SIZE=$(stat -c%s "${IMG}")
-          # Uncompressed size (for imager extract_size)
-          EXTRACT_SIZE=$(xz --robot --list "${IMG}" | grep totals | awk '{print $5}')
-          echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
-          echo "size=${SIZE}" >> "$GITHUB_OUTPUT"
+          # Compressed file hash (image_download_sha256)
+          DL_SHA256=$(sha256sum "${IMG}" | awk '{print $1}')
+          DL_SIZE=$(stat -c%s "${IMG}")
+          # Extracted image hash (extract_sha256) and size
+          xz -dk "${IMG}"
+          EXTRACTED="${IMG%.xz}"
+          EX_SHA256=$(sha256sum "${EXTRACTED}" | awk '{print $1}')
+          EXTRACT_SIZE=$(stat -c%s "${EXTRACTED}")
+          rm -f "${EXTRACTED}"
+          echo "dl_sha256=${DL_SHA256}" >> "$GITHUB_OUTPUT"
+          echo "ex_sha256=${EX_SHA256}" >> "$GITHUB_OUTPUT"
+          echo "size=${DL_SIZE}" >> "$GITHUB_OUTPUT"
           echo "extract_size=${EXTRACT_SIZE}" >> "$GITHUB_OUTPUT"
 
       - name: Rename image to canonical filename
         run: |
-          mv "${{ steps.locate.outputs.path }}" \
-             "$(dirname ${{ steps.locate.outputs.path }})/flighttracker-os-${{ matrix.arch }}.img.xz"
+          mv "${{ steps.locate.outputs.path }}" "flighttracker-os-${{ matrix.arch }}.img.xz"
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
           name: image-${{ matrix.arch }}
-          path: "$(dirname ${{ steps.locate.outputs.path }})/flighttracker-os-${{ matrix.arch }}.img.xz"
+          path: flighttracker-os-${{ matrix.arch }}.img.xz
           retention-days: 1
 
       - name: Write metadata artifact
         run: |
-          cat > /tmp/meta-${{ matrix.arch }}.json <<EOF
+          cat > /tmp/meta-${{ matrix.arch }}.json << 'EOF'
           {
             "arch": "${{ matrix.arch }}",
             "filename": "flighttracker-os-${{ matrix.arch }}.img.xz",
-            "sha256": "${{ steps.checksum.outputs.sha256 }}",
+            "image_download_sha256": "${{ steps.checksum.outputs.dl_sha256 }}",
+            "extract_sha256": "${{ steps.checksum.outputs.ex_sha256 }}",
             "download_size": ${{ steps.checksum.outputs.size }},
             "extract_size": ${{ steps.checksum.outputs.extract_size }}
           }
@@ -110,10 +168,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout main (not the tag, so os_list.json push is fast-forward)
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -133,38 +192,64 @@ jobs:
           BASE_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}"
           RELEASE_DATE=$(date +%Y-%m-%d)
 
+          # Map arch to the device tags used in os_list.json
+          declare -A DEVICES_ARM64='([0]="pi5-64bit" [1]="pi4-64bit" [2]="pi3-64bit" [3]="pi0-2w-64bit")'
+          declare -A DEVICES_ARMHF='([0]="pi5-32bit" [1]="pi4-32bit" [2]="pi3-32bit" [3]="pi2-32bit" [4]="pi0-2w-32bit")'
+
           for arch in arm64 armhf; do
             META=$(cat "artifacts/meta-${arch}/meta-${arch}.json")
-            SHA256=$(echo "${META}" | jq -r '.sha256')
+            SHA256=$(echo "${META}" | jq -r '.extract_sha256')
+            DL_SHA256=$(echo "${META}" | jq -r '.image_download_sha256')
             DL_SIZE=$(echo "${META}" | jq -r '.download_size')
             EX_SIZE=$(echo "${META}" | jq -r '.extract_size')
             URL="${BASE_URL}/flighttracker-os-${arch}.img.xz"
 
-            # Update the matching entry in os_list.json by arch field
+            # Build devices JSON array for this arch
+            if [ "$arch" = "arm64" ]; then
+              DEVICES_JSON=$(printf '%s\n' "${DEVICES_ARM64[@]}" | jq -R . | jq -s .)
+            else
+              DEVICES_JSON=$(printf '%s\n' "${DEVICES_ARMHF[@]}" | jq -R . | jq -s .)
+            fi
+
+            # Set display name with version number for this arch
+            if [ "$arch" = "arm64" ]; then
+              DISPLAY_NAME="FlightTracker OS ${TAG} (64-bit)"
+            else
+              DISPLAY_NAME="FlightTracker OS ${TAG} (32-bit)"
+            fi
+
+            # Match entry by URL containing the arch name (stable identifier)
             jq --arg arch "$arch" \
                --arg url "$URL" \
+               --arg name "$DISPLAY_NAME" \
                --arg sha256 "$SHA256" \
+               --arg dl_sha256 "$DL_SHA256" \
                --argjson dl_size "$DL_SIZE" \
                --argjson ex_size "$EX_SIZE" \
                --arg date "$RELEASE_DATE" \
                --arg tag "$TAG" \
-               '(.os_list[] | select(.arch == $arch)) |=
-                 . + {url: $url, extract_sha256: $sha256,
+               --argjson devices "$DEVICES_JSON" \
+               '(.os_list[] | select(.url | test("flighttracker-os-" + $arch + "\\.img\\.xz"))) |=
+                 . + {name: $name, url: $url, extract_sha256: $sha256,
+                      image_download_sha256: $dl_sha256,
                       image_download_size: $dl_size,
                       extract_size: $ex_size,
                       release_date: $date,
-                      version: $tag}' \
+                      version: $tag,
+                      devices: $devices}' \
                os_list.json > os_list.json.tmp
             mv os_list.json.tmp os_list.json
           done
 
-      - name: Commit updated os_list.json
+      - name: Commit and push updated os_list.json
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add os_list.json
           git commit -m "release: update os_list.json for ${{ github.ref_name }}" || true
-          git push origin HEAD:main
+          # Rebase on latest main in case commits landed during the build
+          git pull --rebase origin main || true
+          git push origin main
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

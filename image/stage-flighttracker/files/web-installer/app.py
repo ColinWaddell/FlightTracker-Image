@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 FlightTracker Web Installer
-Runs on the Pi on first boot. Accessible at http://flighttracker.local/
+Runs on the Pi on first boot. Accessible at http://flighttracker.local:8584/
+After installation completes and the Pi reboots, the FlightTracker web
+interface takes over the same port (8584).
 """
 
 import os
@@ -13,7 +15,14 @@ from flask import Flask, render_template, request, Response, redirect, url_for
 
 import pexpect
 
+from version import VERSION
+
 app = Flask(__name__)
+
+# -- Version ------------------------------------------------------------------
+
+__version__ = ".".join(str(v) for v in VERSION)
+app.jinja_env.globals["app_version"] = __version__
 
 # -- Constants -----------------------------------------------------------------
 
@@ -84,85 +93,127 @@ def run_installer(config: dict) -> None:
         _emit("Download complete.\n\n")
 
         # -- Spawn the installer via pexpect -----------------------------------
+        # The web installer service runs as the configured FT user, so the
+        # install script detects the correct CURRENT_USER and CURRENT_HOME,
+        # producing correct service file paths.
+        # Set FT_VERBOSE=1 so run_quiet() streams command output (apt, git,
+        # pip, make) to stdout instead of capturing to a temp file.
         child = pexpect.spawn(
             "bash",
             [INSTALL_SCRIPT],
             timeout=600,
             encoding="utf-8",
             codec_errors="replace",
+            env={
+                **os.environ,
+                "FT_VERBOSE": "1",
+            },
         )
 
-        # Expected prompts in order. pexpect.TIMEOUT and pexpect.EOF always last.
-        PROMPTS = [
-            r"Ready to begin installation\?",   # 0
-            r"Select interface board type:",     # 1
-            r"Install realtime clock support\?",  # 2
-            r"What is thy bidding\?",            # 3
-            r"reserve a core",                  # 4 (cpu isolation menu)
-            r"Continue with these settings\?",   # 5
-            r"Reboot now\?",                    # 6
-            r"Would you like to uninstall",       # 7 (existing install)
-            r"Continue anyway\?",               # 8 (non-debian warning)
-            pexpect.EOF,                      # 9
-            pexpect.TIMEOUT,                   # 10
-        ]
+        # Build prompt list based on installer variant.
+        # Pi5 installer prompts: Continue anyway?, Would you like to uninstall?,
+        #   Ready to begin?, Reboot now?
+        # Pi 3/4 installer prompts: Continue anyway?, Would you like to uninstall?,
+        #   Ready to begin?, SELECT 1-N: (interface board), Install RTC?,
+        #   Continue with these settings?, Reboot now?
+        #
+        # We use a short TIMEOUT (2 s) as the first pattern so that stdout
+        # from the install script is streamed to the operator in near real
+        # time instead of being buffered until the next prompt match.
+        # A separate wall-clock deadline guards against genuine hangs.
+        STREAM_TIMEOUT = 2          # seconds between output flushes
+        WALL_DEADLINE = 600         # 10 min with zero output = real timeout
+
+        if pi5:
+            REAL_PROMPTS = [
+                r"Continue anyway\?",                    # 0
+                r"Would you like to uninstall",            # 1
+                r"Ready to begin installation\?",         # 2
+                r"Reboot now\?",                          # 3
+            ]
+        else:
+            REAL_PROMPTS = [
+                r"Continue anyway\?",                    # 0
+                r"Would you like to uninstall",            # 1
+                r"Ready to begin installation\?",         # 2
+                r"SELECT 1-\d+:",                        # 3
+                r"Install realtime clock support\?",      # 4
+                r"Continue with these settings\?",       # 5
+                r"Reboot now\?",                          # 6
+            ]
+
+        # Full expect list: TIMEOUT first (for streaming), then real prompts,
+        # then EOF.
+        EXPECT_LIST = [pexpect.TIMEOUT] + REAL_PROMPTS + [pexpect.EOF]
+        TIMEOUT_IDX = 0
+        EOF_IDX = len(EXPECT_LIST) - 1
+        PROMPT_OFFSET = 1   # real prompts start at index 1 in EXPECT_LIST
+
+        import time as _time
+        last_output_time = _time.monotonic()
 
         while True:
-            idx = child.expect(PROMPTS, timeout=300)
+            idx = child.expect(EXPECT_LIST, timeout=STREAM_TIMEOUT)
 
-            # Emit whatever was printed before this prompt
+            # Always emit whatever accumulated before the matched pattern.
             before = strip_ansi(child.before or "")
             if before:
                 _emit(before)
+                last_output_time = _time.monotonic()
 
-            if idx == 0:  # Ready to begin
+            if idx == TIMEOUT_IDX:
+                # No prompt — just a streaming checkpoint.  If the wall
+                # clock deadline has passed with zero output, bail out.
+                if _time.monotonic() - last_output_time > WALL_DEADLINE:
+                    raise RuntimeError(
+                        "Installation timed out — no output for "
+                        f"{WALL_DEADLINE}s."
+                    )
+                continue
+
+            if idx == EOF_IDX:
+                # Installer process exited.
+                if isinstance(child.after, str):
+                    after = strip_ansi(child.after)
+                    if after:
+                        _emit(after)
+                break
+
+            # Map the expect index back to the real prompt index.
+            prompt_idx = idx - PROMPT_OFFSET
+
+            if prompt_idx == 0 or prompt_idx == 1:
+                # Continue anyway? / Would you like to uninstall?
                 _emit("» y\n")
                 child.sendline("y")
-
-            elif idx == 1:  # Interface board type (Pi3/4/Zero only)
+            elif prompt_idx == 2:
+                # Ready to begin installation?
+                _emit("» y\n")
+                child.sendline("y")
+            elif not pi5 and prompt_idx == 3:
+                # SELECT 1-N: (interface board type)
                 _emit("\n» Selecting interface board…\n")
                 child.sendline(str(config.get("interface_type", "1")))
-
-            elif idx == 2:  # Install RTC?
+            elif not pi5 and prompt_idx == 4:
+                # Install realtime clock support?
                 val = "y" if config.get("install_rtc") else "n"
                 _emit(f"» {val}\n")
                 child.sendline(val)
-
-            elif idx == 3:  # Quality vs convenience
-                _emit("\n» Selecting display mode…\n")
-                child.sendline(str(config.get("quality_mode", "2")))
-
-            elif idx == 4:  # CPU isolation menu - answer 0 (no core reserved)
-                _emit("» 0\n")
-                child.sendline("0")
-
-            elif idx == 5:  # Continue with settings
+            elif not pi5 and prompt_idx == 5:
+                # Continue with these settings?
                 _emit("» y\n")
                 child.sendline("y")
-
-            elif idx == 6:  # Reboot now - always decline; we handle it
+            elif (pi5 and prompt_idx == 3) or (not pi5 and prompt_idx == 6):
+                # Reboot now? — decline, web UI handles reboot
                 _emit("» n (reboot managed by installer UI)\n")
                 child.sendline("n")
-
-            elif idx == 7 or idx == 8:  # Existing install or non-debian warning
-                _emit("» y\n")
-                child.sendline("y")
-
-            elif idx == 9:  # EOF - installer finished
-                after = strip_ansi(child.after or "")
-                if after and after is not pexpect.EOF:
-                    _emit(after)
-                break
-
-            elif idx == 10:  # Timeout
-                raise RuntimeError("Installation timed out waiting for a response.")
 
         child.close()
         if child.exitstatus and child.exitstatus != 0:
             raise RuntimeError(f"Installer exited with code {child.exitstatus}")
 
-        # -- Mark as installed -------------------------------------------------
-        open(SENTINEL_FILE, "w").close()
+        # -- Mark as installed (needs sudo: /opt is root-owned) ---------------
+        subprocess.run(["sudo", "tee", SENTINEL_FILE], input="", check=True)
         _install_success = True
         _emit("\n\n✓ Installation complete.\n")
 
@@ -230,9 +281,9 @@ def progress():
     if _install_running:
         return render_template("progress.html", model=model)
     if not _output_log:
-        # No install has been started - go to the beginning
+        # No install has been started — go to the beginning
         return redirect(url_for("index"))
-    # Install already finished - go to done
+    # Install already finished — go to done
     return redirect(url_for("done"))
 
 
@@ -264,7 +315,7 @@ def events():
                 yield ": keep-alive\n\n"
                 continue
 
-            # The queue item was a signal - read any new lines from the log
+            # The queue item was a signal — read any new lines from the log
             with _output_lock:
                 new_lines = _output_log[log_pos:]
                 log_pos = len(_output_log)
@@ -315,7 +366,7 @@ def reboot():
         import time
 
         time.sleep(1)
-        subprocess.run(["reboot"])
+        subprocess.run(["sudo", "reboot"])
 
     threading.Thread(target=_reboot, daemon=True).start()
     return render_template("rebooting.html")
@@ -324,5 +375,7 @@ def reboot():
 # -- Entry point ---------------------------------------------------------------
 
 if __name__ == "__main__":
-    # Port 80 requires root; the systemd unit runs as root.
-    app.run(host="0.0.0.0", port=80, threaded=True, debug=False)
+    # Port 8584 — same port the FlightTracker web interface uses after install.
+    # This way the operator bookmarks one URL and after reboot they see the
+    # FlightTracker interface instead of the installer.
+    app.run(host="0.0.0.0", port=8584, threaded=True, debug=False)
