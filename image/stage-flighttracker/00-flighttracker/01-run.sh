@@ -2,7 +2,7 @@
 
 # -- FlightTracker OS custom stage ---------------------------------------------
 # Installs the web-based installer that runs on first boot, accessible at
-# http://flighttracker.local/ after the user flashes and boots the image.
+# http://flighttracker.local:8584/ after the user flashes and boots the image.
 
 INSTALLER_DIR="${ROOTFS_DIR}/opt/flighttracker-installer"
 
@@ -18,8 +18,19 @@ install -m 644 ../files/web-installer/static/images/*   "${INSTALLER_DIR}/static
 # -- Install Python dependencies into the image ---------------------------------
 # Flask and pexpect are installed via apt (00-packages), no pip needed
 
-# -- Systemd service ------------------------------------------------------------
+# -- Web installer systemd service -------------------------------------------
+# The web installer runs as the same user that FlightTracker will run as.
+# We detect the username from pi-gen's FIRST_USER_NAME config so the image
+# works correctly even if someone builds with a non-default username.
+FT_USER="${FIRST_USER_NAME:-pi}"
+FT_HOME="/home/${FT_USER}"
+
+# Patch the service file with the correct user and home directory
 install -m 644 ../files/flighttracker-web-installer.service \
+    "${ROOTFS_DIR}/etc/systemd/system/flighttracker-web-installer.service"
+sed -i \
+    -e "s|^User=pi$|User=${FT_USER}|" \
+    -e "s|/home/pi/|${FT_HOME}/|g" \
     "${ROOTFS_DIR}/etc/systemd/system/flighttracker-web-installer.service"
 
 systemctl --root="${ROOTFS_DIR}" enable flighttracker-web-installer.service
@@ -48,14 +59,14 @@ for cfg in "${ROOTFS_DIR}/boot/firmware/config.txt" "${ROOTFS_DIR}/boot/config.t
   fi
 done
 
-# -- Passwordless sudo for pi user --------------------------------------------
-# The web installer runs as pi and spawns the install script as pi.
-# The install script uses sudo internally (apt-get, systemctl, etc.),
-# so pi needs passwordless sudo. Also set via PASSWORDLESS_SUDO=1 in
-# pi-gen config, but this sudoers file is belt-and-braces.
+# -- Passwordless sudo for the FlightTracker user ----------------------------
+# The web installer runs as the FT user and spawns the install script,
+# which uses sudo internally (apt-get, systemctl, etc.).
+# Also set via PASSWORDLESS_SUDO=1 in pi-gen config, but this sudoers file
+# is belt-and-braces.
 install -d "${ROOTFS_DIR}/etc/sudoers.d"
-echo "pi ALL=(ALL) NOPASSWD: ALL" > "${ROOTFS_DIR}/etc/sudoers.d/010_pi-nopasswd"
-chmod 440 "${ROOTFS_DIR}/etc/sudoers.d/010_pi-nopasswd"
+echo "${FT_USER} ALL=(ALL) NOPASSWD: ALL" > "${ROOTFS_DIR}/etc/sudoers.d/010-ft-nopasswd"
+chmod 440 "${ROOTFS_DIR}/etc/sudoers.d/010-ft-nopasswd"
 
 # -- Hostname ------------------------------------------------------------------
 echo "flighttracker" > "${ROOTFS_DIR}/etc/hostname"

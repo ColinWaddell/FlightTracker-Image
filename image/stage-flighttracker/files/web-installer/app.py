@@ -93,8 +93,8 @@ def run_installer(config: dict) -> None:
         _emit("Download complete.\n\n")
 
         # -- Spawn the installer via pexpect -----------------------------------
-        # The web installer service runs as the 'pi' user, so the install
-        # script detects CURRENT_USER=pi and CURRENT_HOME=/home/pi,
+        # The web installer service runs as the configured FT user, so the
+        # install script detects the correct CURRENT_USER and CURRENT_HOME,
         # producing correct service file paths.
         child = pexpect.spawn(
             "bash",
