@@ -3,6 +3,8 @@ Description=FlightTracker Web Installer
 Documentation=https://github.com/ColinWaddell/FlightTracker
 After=network-online.target avahi-daemon.service
 Wants=network-online.target
+# Disable after a successful install (the app writes this sentinel file)
+ConditionPathExists=!/opt/flighttracker-installer/.installed
 
 [Service]
 Type=simple
@@ -13,9 +15,6 @@ RestartSec=5
 
 # Run as root so the installer can call apt-get, pip, systemctl etc.
 User=root
-
-# Disable after a successful install (the app writes this sentinel file)
-ConditionPathExists=!/opt/flighttracker-installer/.installed
 
 StandardOutput=journal
 StandardError=journal

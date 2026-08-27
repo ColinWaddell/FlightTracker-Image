@@ -91,9 +91,13 @@ def run_installer(config: dict) -> None:
         _emit("Download complete.\n\n")
 
         # -- Spawn the installer via pexpect -----------------------------------
+        # Run as the 'pi' user so the install script detects the correct
+        # user/home and generates service paths for pi, not root.
+        # pi has passwordless sudo (configured in the image) so the install
+        # script's sudo calls work without a password prompt.
         child = pexpect.spawn(
-            "bash",
-            [INSTALL_SCRIPT],
+            "sudo",
+            ["-u", "pi", "bash", INSTALL_SCRIPT],
             timeout=600,
             encoding="utf-8",
             codec_errors="replace",

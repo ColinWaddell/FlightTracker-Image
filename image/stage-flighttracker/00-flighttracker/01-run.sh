@@ -48,6 +48,14 @@ for cfg in "${ROOTFS_DIR}/boot/firmware/config.txt" "${ROOTFS_DIR}/boot/config.t
   fi
 done
 
+# -- Passwordless sudo for pi user --------------------------------------------
+# The web installer runs the install script as root, but if we later switch
+# to running as pi, pi needs passwordless sudo for the install script's
+# sudo calls (apt-get, systemctl, etc.).
+install -d "${ROOTFS_DIR}/etc/sudoers.d"
+echo "pi ALL=(ALL) NOPASSWD: ALL" > "${ROOTFS_DIR}/etc/sudoers.d/010_pi-nopasswd"
+chmod 440 "${ROOTFS_DIR}/etc/sudoers.d/010_pi-nopasswd"
+
 # -- Hostname ------------------------------------------------------------------
 echo "flighttracker" > "${ROOTFS_DIR}/etc/hostname"
 sed -i "s/127\.0\.1\.1.*/127.0.1.1\tflighttracker/" "${ROOTFS_DIR}/etc/hosts" || \

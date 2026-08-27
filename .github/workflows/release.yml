@@ -83,6 +83,7 @@ jobs:
             echo 'KEYBOARD_LAYOUT="English (UK)"'
             echo 'TIMEZONE_DEFAULT="Europe/London"'
             echo 'FIRST_USER_NAME="pi"'
+            echo 'PASSWORDLESS_SUDO=1'
             echo 'ENABLE_SSH=1'
             echo 'STAGE_LIST="stage0 stage1 stage2 stage-flighttracker"'
             echo 'DEPLOY_COMPRESSION="xz"'
