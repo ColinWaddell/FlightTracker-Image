@@ -43,10 +43,7 @@ https://raw.githubusercontent.com/ColinWaddell/FlightTracker-Image/refs/heads/ma
 
 Pre-built images are also available on the [releases page](https://github.com/ColinWaddell/FlightTracker-Image/releases).
 
-## Build your own
-
-Want to build the hardware? An [official 3D-printable case](https://www.printables.com/model/1820229-flight-tracker-screen-for-raspberry-pi-any-model-6) is available, and full build instructions are on the [FlightTracker site](https://github.com/ColinWaddell/FlightTracker).
-
----
+## Build your own Flight Tracker
 
 Full details and more are available on the official website [Flight-Tracker.dev](https://flight-tracker.dev)
+
