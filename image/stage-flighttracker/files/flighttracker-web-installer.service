@@ -13,7 +13,7 @@ WorkingDirectory=/home/pi
 Restart=on-failure
 RestartSec=5
 
-# Run as the pi user — same user the FlightTracker service runs as.
+# Run as the pi user - same user the FlightTracker service runs as.
 # Port 8584 doesn't need root privileges.
 # The build stage patches User= and WorkingDirectory= with the actual
 # username configured via FIRST_USER_NAME in pi-gen.

@@ -88,7 +88,7 @@ Unattended-Upgrade::Allowed-Origins {
     "origin=Debian,codename=${distro_codename},label=Debian-Security";
     "origin=Raspbian,codename=${distro_codename},label=Raspbian-Security";
 };
-// Do NOT automatically reboot — this device may be driving an LED display
+// Do NOT automatically reboot - this device may be driving an LED display
 Unattended-Upgrade::Automatic-Reboot "false";
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
@@ -98,7 +98,7 @@ systemctl --root="${ROOTFS_DIR}" enable apt-daily.timer apt-daily-upgrade.timer
 
 # -- Hardware watchdog ---------------------------------------------------------
 # Enable the hardware watchdog so the Pi reboots if it hangs.
-# Pi 3/4/Zero use bcm2835_wdt, Pi 5 uses bcm2712_wdt — load both,
+# Pi 3/4/Zero use bcm2835_wdt, Pi 5 uses bcm2712_wdt - load both,
 # the kernel silently ignores the one that doesn't apply.
 on_chroot << EOF
 mkdir -p /etc/modules-load.d

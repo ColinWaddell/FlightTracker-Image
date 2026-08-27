@@ -162,11 +162,11 @@ def run_installer(config: dict) -> None:
                 last_output_time = _time.monotonic()
 
             if idx == TIMEOUT_IDX:
-                # No prompt — just a streaming checkpoint.  If the wall
+                # No prompt - just a streaming checkpoint.  If the wall
                 # clock deadline has passed with zero output, bail out.
                 if _time.monotonic() - last_output_time > WALL_DEADLINE:
                     raise RuntimeError(
-                        "Installation timed out — no output for "
+                        "Installation timed out - no output for "
                         f"{WALL_DEADLINE}s."
                     )
                 continue
@@ -204,7 +204,7 @@ def run_installer(config: dict) -> None:
                 _emit("» y\n")
                 child.sendline("y")
             elif (pi5 and prompt_idx == 3) or (not pi5 and prompt_idx == 6):
-                # Reboot now? — decline, web UI handles reboot
+                # Reboot now? - decline, web UI handles reboot
                 _emit("» n (reboot managed by installer UI)\n")
                 child.sendline("n")
 
@@ -281,9 +281,9 @@ def progress():
     if _install_running:
         return render_template("progress.html", model=model)
     if not _output_log:
-        # No install has been started — go to the beginning
+        # No install has been started - go to the beginning
         return redirect(url_for("index"))
-    # Install already finished — go to done
+    # Install already finished - go to done
     return redirect(url_for("done"))
 
 
@@ -315,7 +315,7 @@ def events():
                 yield ": keep-alive\n\n"
                 continue
 
-            # The queue item was a signal — read any new lines from the log
+            # The queue item was a signal - read any new lines from the log
             with _output_lock:
                 new_lines = _output_log[log_pos:]
                 log_pos = len(_output_log)
@@ -375,7 +375,7 @@ def reboot():
 # -- Entry point ---------------------------------------------------------------
 
 if __name__ == "__main__":
-    # Port 8584 — same port the FlightTracker web interface uses after install.
+    # Port 8584 - same port the FlightTracker web interface uses after install.
     # This way the operator bookmarks one URL and after reboot they see the
     # FlightTracker interface instead of the installer.
     app.run(host="0.0.0.0", port=8584, threaded=True, debug=False)

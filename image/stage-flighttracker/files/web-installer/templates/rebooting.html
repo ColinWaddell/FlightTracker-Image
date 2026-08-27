@@ -41,13 +41,13 @@
           elapsed.textContent = "";
           window.location.href = "/";
         } else {
-          // 503 or other — service is starting but not ready yet
+          // 503 or other - service is starting but not ready yet
           statusTitle.textContent = "Waiting for FlightTracker to start…";
           setTimeout(poll, 1500);
         }
       })
       .catch(() => {
-        // Network error — Pi is still rebooting, nothing listening yet
+        // Network error - Pi is still rebooting, nothing listening yet
         statusTitle.textContent = "Rebooting…";
         statusText.textContent = "Your Pi is restarting. FlightTracker will start automatically.";
         setTimeout(poll, 1500);
