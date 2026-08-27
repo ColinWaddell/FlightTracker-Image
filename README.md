@@ -14,7 +14,7 @@ A pre-built Raspberry Pi image with everything installed and configured for your
 
 ## Install with Raspberry Pi Imager
 
-If you have [Raspberry Pi Imager](https://www.raspberrypi.com/software/) installed, you can open the FlightTracker OS image directly [BY CLICKING HERE](rpi-imager://open?repo=https%3A%2F%2Fraw.githubusercontent.com%2FColinWaddell%2FFlightTracker-Image%2Frefs%2Fheads%2Fmain%2Fos_list.json)
+If you have [Raspberry Pi Imager](https://www.raspberrypi.com/software/) installed, you can open the FlightTracker OS image directly by visiting the official page [flight-tracker.dev](https://flight-tracker.dev/) and clicking the big "Install with RPi Imager" button
 
 > RPi Imager will ask you to confirm the custom repository before loading it.
 
@@ -26,7 +26,7 @@ https://raw.githubusercontent.com/ColinWaddell/FlightTracker-Image/refs/heads/ma
 
 ## How it works
 
-1. **Flash the image** - Either [click this link](rpi-imager://open?repo=https%3A%2F%2Fraw.githubusercontent.com%2FColinWaddell%2FFlightTracker-Image%2Frefs%2Fheads%2Fmain%2Fos_list.json) or open RPi Imager, paste the URL above, set your Wi-Fi in Advanced Options, then flash to an SD card.
+1. **Flash the image** - Either visit [flight-tracker.dev](https://flight-tracker.dev/) and click the big "Install with RPi Imager" button or open RPi Imager, paste the URL above, set your Wi-Fi in Advanced Options, then flash to an SD card.
 2. **Boot your Pi** - Insert the card and power on. The Pi connects to your Wi-Fi automatically using the credentials you set.
 3. **Open the installer** - Visit `http://flighttracker.local/:8584` in your browser (tweak the URL based on the hostname you gave the device). The web installer guides you through the rest.
 4. **Reboot and enjoy** - Hit Reboot when the installer finishes. FlightTracker starts automatically on the LED display.
