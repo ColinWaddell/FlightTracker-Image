@@ -197,8 +197,8 @@ def run_installer(config: dict) -> None:
         if child.exitstatus and child.exitstatus != 0:
             raise RuntimeError(f"Installer exited with code {child.exitstatus}")
 
-        # -- Mark as installed -------------------------------------------------
-        open(SENTINEL_FILE, "w").close()
+        # -- Mark as installed (needs sudo: /opt is root-owned) ---------------
+        subprocess.run(["sudo", "tee", SENTINEL_FILE], input="", check=True)
         _install_success = True
         _emit("\n\n✓ Installation complete.\n")
 
