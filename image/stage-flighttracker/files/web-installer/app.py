@@ -57,6 +57,23 @@ def is_pi5(model: str) -> bool:
     return "Pi 5" in model
 
 
+def is_unsupported(model: str) -> bool:
+    """Return True for Pi models too low-powered for the web installer.
+
+    The web installer runs a full build pipeline that is too heavy for
+    Pi Zero, Pi Zero W, Pi Zero 2 W, and Pi 1/2 boards.  Those devices
+    should use the quick-install script over SSH instead.
+    """
+    unsupported_markers = [
+        "Pi Zero",
+        "Pi Zero W",
+        "Pi Zero 2",
+        "Pi 1",
+        "Pi 2",
+    ]
+    return any(m in model for m in unsupported_markers)
+
+
 def strip_ansi(text: str) -> str:
     return re.sub(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "", text)
 
@@ -236,7 +253,9 @@ def index():
         return redirect(url_for("progress"))
     if os.path.exists(SENTINEL_FILE):
         return redirect(url_for("done"))
-    return render_template("index.html", model=model)
+    return render_template(
+        "index.html", model=model, unsupported=is_unsupported(model)
+    )
 
 
 @app.route("/config")

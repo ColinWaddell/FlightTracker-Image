@@ -10,7 +10,7 @@ A pre-built Raspberry Pi image with everything installed and configured for your
 
 **FlightTracker OS** is the easiest way to get it running. Flash the image to an SD card with [Raspberry Pi Imager](https://www.raspberrypi.com/software/), set your Wi-Fi details, flash, and boot. You can then log into the web installer and finish setup from your browser.
 
-32-bit and 64-bit images are available for every Raspberry Pi model, from the Pi Zero up to the Pi 5.
+32-bit and 64-bit images are available for Raspberry Pi 3, 4, and 5.
 
 ## Install with Raspberry Pi Imager
 
@@ -37,8 +37,8 @@ https://raw.githubusercontent.com/ColinWaddell/FlightTracker-Image/refs/heads/ma
 
 | | 64-bit (`arm64`) | 32-bit (`armhf`) |
 |---|---|---|
-| **Best for** | Pi Zero 2 W, Pi 3, Pi 4, Pi 5 | Pi Zero, Pi Zero W |
-| **Notes** | Recommended - best performance | Use for older boards or 32-bit library compatibility |
+| **Best for** | Pi 3, Pi 4, Pi 5 | Pi 3 (32-bit compatibility) |
+| **Notes** | Recommended - best performance | Use for 32-bit library compatibility |
 | **Download** | [`flighttracker-os-arm64.img.xz`](https://github.com/ColinWaddell/FlightTracker-Image/releases/latest/download/flighttracker-os-arm64.img.xz) | [`flighttracker-os-armhf.img.xz`](https://github.com/ColinWaddell/FlightTracker-Image/releases/latest/download/flighttracker-os-armhf.img.xz) |
 
 Pre-built images are also available on the [releases page](https://github.com/ColinWaddell/FlightTracker-Image/releases).

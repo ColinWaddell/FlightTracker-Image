@@ -15,6 +15,14 @@
   This installer will set up FlightTracker on your {{ model }}.<br>
 </p>
 
+{% if unsupported %}
+<div class="alert alert-warning border-warning border-2 mb-4" role="alert">
+  <h5 class="alert-heading"><i class="bi bi-exclamation-triangle-fill me-1"></i>Unsupported device</h5>
+  <p class="mb-2">It looks like you're trying to install this on an unsupported device. We recommend using the quick-installer script over SSH instead of continuing with the web-installer.</p>
+  <p class="mb-0">Please see <a href="https://flight-tracker.dev" target="_blank">flight-tracker.dev</a> for more instructions.</p>
+</div>
+{% else %}
+
 <img
     src="{{ url_for('static', filename='images/flight-tracker.jpg') }}"
     alt="FlightTracker"
@@ -31,9 +39,11 @@
    style="opacity:0.4; pointer-events:none;">
   Continue <i class="bi bi-arrow-right ms-1"></i>
 </a>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
+{% if not unsupported %}
 <script>
   fetch("https://github.com", { mode: "no-cors", cache: "no-store" })
     .then(() => {
@@ -50,4 +60,5 @@
         'Please check your Wi-Fi settings and reload this page.</span>';
     });
 </script>
+{% endif %}
 {% endblock %}
