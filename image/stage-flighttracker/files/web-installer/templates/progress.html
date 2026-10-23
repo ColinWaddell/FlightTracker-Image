@@ -38,6 +38,40 @@
   let connected = false;
   let finished = false;
 
+  // Keep the DOM bounded: append each chunk as its own node and drop the
+  // oldest once we're over the cap.  Letting one text node grow forever is
+  // what makes long installs grind the browser tab to a halt.
+  const MAX_CHUNKS = 400;
+  let scrollQueued = false;
+
+  function scheduleScroll() {
+    if (scrollQueued) return;
+    scrollQueued = true;
+    requestAnimationFrame(() => {
+      scrollQueued = false;
+      terminal.scrollTop = terminal.scrollHeight;
+    });
+  }
+
+  function appendChunk(text) {
+    // Decide *before* appending whether the user was looking at the tail,
+    // so newly-added content can't push us past the auto-follow threshold.
+    // Scrolling up to read is never yanked back by the live stream.
+    const stick = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight < 80;
+
+    const node = document.createElement('div');
+    node.textContent = text;
+    terminal.appendChild(node);
+
+    while (terminal.children.length > MAX_CHUNKS) {
+      terminal.removeChild(terminal.firstChild);
+    }
+
+    if (stick) {
+      scheduleScroll();
+    }
+  }
+
   const source = new EventSource('/events');
 
   source.onopen = function() {
@@ -45,12 +79,13 @@
       connected = true;
       terminal.textContent = '';  // Clear "Connecting…" placeholder on first connect
     }
+    // On reconnect: the server does not replay history - the terminal keeps
+    // what it shows and streams output from the moment we reconnected.
   };
 
   source.onmessage = function(e) {
     if (e.data) {
-      terminal.textContent += e.data;
-      terminal.scrollTop = terminal.scrollHeight;
+      appendChunk(e.data);
     }
   };
 

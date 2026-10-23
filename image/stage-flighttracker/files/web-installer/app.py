@@ -32,14 +32,20 @@ SENTINEL_FILE = "/opt/flighttracker-installer/.installed"
 INSTALL_SCRIPT = "/tmp/ft-install.sh"
 
 # -- Global install state -------------------------------------------------------
+#
+# Output fan-out: each connected SSE client gets its own bounded queue and
+# _emit() broadcasts to all of them.  There is no replay - a client only
+# sees output from the moment it connects (or reconnects).
 
-_output_queue: queue.Queue = queue.Queue()
-_output_log: list[str] = []
-_output_lock = threading.Lock()
+MAX_CLIENT_QUEUE = 500  # lines buffered per slow client before old ones drop
+
+_client_queues: list[queue.Queue] = []
+_client_queues_lock = threading.Lock()
 _install_thread: threading.Thread | None = None
 _install_running = False
 _install_success = False
 _install_error = None
+_install_has_run = False
 
 
 # -- Hardware detection --------------------------------------------------------
@@ -78,14 +84,54 @@ def strip_ansi(text: str) -> str:
     return re.sub(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "", text)
 
 
+def collapse_carriage_returns(text: str) -> str:
+    """Collapse pty carriage-return progress spam into plain lines.
+
+    Interactive tools (apt, dpkg, curl) redraw progress bars with \r
+    instead of \n.  Within each newline-delimited segment keep only the
+    text after the last \r - i.e. exactly what a terminal would show.
+    """
+    text = text.replace("\r\n", "\n")
+    return "\n".join(
+        seg.rsplit("\r", 1)[-1] if "\r" in seg else seg
+        for seg in text.split("\n")
+    )
+
+
+def _broadcast(item) -> None:
+    """Send an item to every connected client's queue.
+
+    Queues are bounded: if a client falls too far behind, its oldest
+    buffered lines are dropped rather than blocking the installer.
+    """
+    with _client_queues_lock:
+        queues = list(_client_queues)
+    for q in queues:
+        try:
+            q.put_nowait(item)
+        except queue.Full:
+            try:
+                q.get_nowait()
+                q.put_nowait(item)
+            except (queue.Empty, queue.Full):
+                pass
+
+
+def _emit(text: str) -> None:
+    """Broadcast a chunk of installer output as one SSE event per line.
+
+    Output is normalized (carriage returns collapsed, ANSI stripped
+    upstream) so the browser receives clean newline-delimited lines.
+    Blank lines are skipped - the SSE client drops empty data events.
+    """
+    if not text:
+        return
+    for seg in collapse_carriage_returns(text).split("\n"):
+        if seg:
+            _broadcast(seg)
+
+
 # -- Installer runner ----------------------------------------------------------
-
-
-def _emit(line: str) -> None:
-    """Push a line of output to the log and SSE queue."""
-    with _output_lock:
-        _output_log.append(line)
-    _output_queue.put(line)
 
 
 def run_installer(config: dict) -> None:
@@ -240,7 +286,7 @@ def run_installer(config: dict) -> None:
 
     finally:
         _install_running = False
-        _output_queue.put(None)  # Sentinel - tells SSE stream to close
+        _broadcast(None)  # Sentinel - closes every live SSE stream
 
 
 # -- Routes --------------------------------------------------------------------
@@ -271,7 +317,7 @@ def config():
 
 @app.route("/install", methods=["POST"])
 def install():
-    global _install_thread, _output_queue
+    global _install_thread, _install_has_run
 
     if _install_running:
         return redirect(url_for("progress"))
@@ -283,11 +329,7 @@ def install():
         "quality_mode": request.form.get("quality_mode", "2"),
     }
 
-    # Fresh queue and log for this run
-    _output_queue = queue.Queue()
-    with _output_lock:
-        _output_log.clear()
-
+    _install_has_run = True
     _install_thread = threading.Thread(target=run_installer, args=(cfg,), daemon=True)
     _install_thread.start()
 
@@ -299,7 +341,7 @@ def progress():
     model = get_pi_model()
     if _install_running:
         return render_template("progress.html", model=model)
-    if not _output_log:
+    if not _install_has_run:
         # No install has been started - go to the beginning
         return redirect(url_for("index"))
     # Install already finished - go to done
@@ -308,46 +350,53 @@ def progress():
 
 @app.route("/events")
 def events():
-    """Server-Sent Events stream of installer output."""
+    """Server-Sent Events stream of live installer output.
+
+    No replay: output produced before a client connects (or reconnects)
+    is not resent - clients get stream-from-now semantics.  A client that
+    connects after the install finished receives the done event
+    immediately and is redirected by the front end.
+    """
 
     def generate():
-        # Replay buffered output first so reconnecting clients see full history
-        with _output_lock:
-            replay = list(_output_log)
-            log_pos = len(_output_log)
-        for line in replay:
-            escaped = line.replace("\n", "\ndata: ")
-            yield f"data: {escaped}\n\n"
-
-        # If install already finished, send the done event immediately
-        if not _install_running:
-            status = "success" if _install_success else "error"
-            yield f"event: done\ndata: {status}\n\n"
-            return
-
-        # Live stream: use queue as a wake signal, then read new log entries
-        while True:
-            try:
-                _output_queue.get(timeout=30)
-            except queue.Empty:
-                # Keep-alive comment
-                yield ": keep-alive\n\n"
-                continue
-
-            # The queue item was a signal - read any new lines from the log
-            with _output_lock:
-                new_lines = _output_log[log_pos:]
-                log_pos = len(_output_log)
-
-            for line in new_lines:
-                escaped = line.replace("\n", "\ndata: ")
-                yield f"data: {escaped}\n\n"
-
-            # Check if install finished (None sentinel was emitted)
-            if not _install_running:
+        q = queue.Queue(maxsize=MAX_CLIENT_QUEUE)
+        with _client_queues_lock:
+            _client_queues.append(q)
+        try:
+            # Register first, then check state; a run finishing between the
+            # two is caught by the state re-check after a queue timeout.
+            if not _install_running and _install_has_run:
                 status = "success" if _install_success else "error"
                 yield f"event: done\ndata: {status}\n\n"
-                break
+                return
+
+            while True:
+                try:
+                    item = q.get(timeout=25)
+                except queue.Empty:
+                    yield ": keep-alive\n\n"
+                    # Covers the sentinel race: the run finished before we
+                    # registered (or its sentinel was dropped from a full
+                    # queue), so fall back to checking the state flags.
+                    if not _install_running and _install_has_run:
+                        status = "success" if _install_success else "error"
+                        yield f"event: done\ndata: {status}\n\n"
+                        return
+                    continue
+
+                if item is None:
+                    # Sentinel from run_installer: run has finished
+                    status = "success" if _install_success else "error"
+                    yield f"event: done\ndata: {status}\n\n"
+                    return
+
+                yield f"data: {item}\n\n"
+        finally:
+            with _client_queues_lock:
+                try:
+                    _client_queues.remove(q)
+                except ValueError:
+                    pass
 
     return Response(
         generate(),
